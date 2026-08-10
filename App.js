@@ -19,7 +19,7 @@ const dkd_tabs = [
   { key: 'dashboard', label: 'Özet', icon: 'view-dashboard-outline', activeIcon: 'view-dashboard' },
   { key: 'orders', label: 'Sipariş', icon: 'package-variant-closed', activeIcon: 'package-variant' },
   { key: 'couriers', label: 'Kuryeler', icon: 'bike-fast', activeIcon: 'motorbike' },
-  { key: 'reports', label: 'Rapor', icon: 'calendar-chart', activeIcon: 'chart-box' },
+  { key: 'reports', label: 'Rapor', icon: 'chart-box-outline', activeIcon: 'chart-box' },
   { key: 'settings', label: 'Ayarlar', icon: 'cog-outline', activeIcon: 'cog' },
 ];
 

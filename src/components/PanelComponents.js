@@ -69,7 +69,9 @@ export function DkdPeriodTabs({ value, onChange }) {
 export function DkdStatusPill({ text, tone = 'blue' }) {
   const dkd_map = { green: { bg: 'rgba(91,224,163,.14)', fg: '#7CF2BC' }, red: { bg: 'rgba(255,107,124,.14)', fg: '#FF9EAA' }, yellow: { bg: 'rgba(255,214,107,.14)', fg: '#FFE08A' }, blue: { bg: 'rgba(102,232,255,.12)', fg: '#99F2FF' }, violet: { bg: 'rgba(169,107,255,.14)', fg: '#C89FFF' } };
   const dkd_style = dkd_map[tone] || dkd_map.blue;
-  return <View style={[styles.pill, { backgroundColor: dkd_style.bg }]}><Text style={[styles.pillText, { color: dkd_style.fg }]}>{text}</Text></View>;
+  const dkd_status_key_value = String(text || '').trim().toUpperCase();
+  const dkd_status_label_value = ({ ACCEPTED: 'KABUL EDİLDİ', OPEN: 'BEKLİYOR', READY: 'HAZIR', PUBLISHED: 'YAYINDA', COMPLETED: 'TAMAMLANDI', DELIVERED: 'TESLİM EDİLDİ', CANCELLED: 'İPTAL', CANCELED: 'İPTAL' })[dkd_status_key_value] || text;
+  return <View style={[styles.pill, { backgroundColor: dkd_style.bg }]}><Text style={[styles.pillText, { color: dkd_style.fg }]}>{dkd_status_label_value}</Text></View>;
 }
 
 export function DkdEmptyState({ icon = 'inbox-outline', title, text }) {
