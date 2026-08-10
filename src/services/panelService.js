@@ -4,9 +4,12 @@ function dkd_error_message(dkd_error_value, dkd_fallback_value = 'İşlem tamaml
   if (!dkd_error_value) return dkd_fallback_value;
   const dkd_text_value = String(dkd_error_value.message || dkd_error_value || '');
   const dkd_map_value = [
+    ['Invalid API key', 'DraBornGo ortak Supabase bağlantı anahtarı geçersiz. Uygulamayı güncel GitHub sürümüne eşitle.'],
     ['Invalid login credentials', 'E-posta veya şifre hatalı.'],
     ['Email not confirmed', 'E-posta adresini doğruladıktan sonra giriş yapabilirsin.'],
     ['User already registered', 'Bu e-posta ile daha önce hesap oluşturulmuş.'],
+    ['Password should be at least', 'Şifre en az 6 karakter olmalı.'],
+    ['Unable to validate email address', 'Geçerli bir e-posta adresi gir.'],
     ['dkd_courier_already_linked', 'Bu kurye şu anda başka bir işletmeye bağlı.'],
     ['dkd_courier_not_approved', 'Yalnızca onaylı DraBornGo kuryeleri eklenebilir.'],
     ['dkd_search_min_3_chars', 'Arama için en az 3 karakter yaz.'],
