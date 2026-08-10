@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationBar } from 'expo-navigation-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import AuthScreen from './src/screens/AuthScreen';
+import AuthScreen from './src/screens/AuthScreenStable';
 import DashboardScreen from './src/screens/DashboardScreenPro';
 import OrdersScreen from './src/screens/OrdersScreenV2';
 import CouriersScreen from './src/screens/CouriersScreenV2';
@@ -14,6 +14,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import { dkd_theme } from './src/lib/theme';
 import { dkd_supabase_ready, supabase } from './src/lib/supabase';
 import { dkd_panel_ensure_business_profile, dkd_panel_fetch_business_profile, dkd_panel_subscribe_live } from './src/services/panelService';
+import { dkd_panel_notify_new_order, dkd_panel_prime_notifications, dkd_panel_register_push_token } from './src/services/notificationService';
 
 const dkd_tabs = [
   { key: 'dashboard', label: 'Özet', icon: 'view-dashboard-outline', activeIcon: 'view-dashboard' },
@@ -36,6 +37,7 @@ function DkdAuthenticatedApp({ session }) {
   const [dkd_loading, dkd_set_loading] = useState(true);
   const [dkd_error, dkd_set_error] = useState('');
   const [dkd_refresh_signal, dkd_set_refresh_signal] = useState(0);
+  const dkd_last_notified_job_ref = useRef(new Set());
 
   const dkd_load_profile = useCallback(async () => {
     dkd_set_error('');
@@ -52,7 +54,31 @@ function DkdAuthenticatedApp({ session }) {
   }, [session?.user]);
 
   useEffect(() => { dkd_load_profile(); }, [dkd_load_profile]);
-  useEffect(() => dkd_panel_subscribe_live(() => dkd_set_refresh_signal((dkd_value) => dkd_value + 1)), []);
+
+  useEffect(() => {
+    let dkd_cancelled_value = false;
+    (async () => {
+      await dkd_panel_prime_notifications();
+      if (!dkd_cancelled_value) await dkd_panel_register_push_token();
+    })();
+    return () => { dkd_cancelled_value = true; };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    return dkd_panel_subscribe_live((dkd_payload_value) => {
+      dkd_set_refresh_signal((dkd_value) => dkd_value + 1);
+      const dkd_table_value = String(dkd_payload_value?.table || '').trim();
+      const dkd_event_value = String(dkd_payload_value?.eventType || '').toUpperCase();
+      const dkd_record_value = dkd_payload_value?.new || {};
+      if (dkd_table_value === 'dkd_courier_jobs' && dkd_event_value === 'INSERT') {
+        const dkd_job_key_value = String(dkd_record_value?.id || '').trim();
+        if (dkd_job_key_value && !dkd_last_notified_job_ref.current.has(dkd_job_key_value)) {
+          dkd_last_notified_job_ref.current.add(dkd_job_key_value);
+          dkd_panel_notify_new_order(dkd_record_value).catch(() => null);
+        }
+      }
+    });
+  }, []);
 
   if (dkd_loading) return <View style={styles.loading}><ActivityIndicator color={dkd_theme.cyan} size="large" /><Text style={styles.loadingText}>İşletme hesabı hazırlanıyor…</Text></View>;
   if (dkd_error) return <View style={styles.loading}><MaterialCommunityIcons name="alert-circle-outline" size={36} color={dkd_theme.red} /><Text style={styles.errorTitle}>Panel açılamadı</Text><Text style={styles.errorText}>{dkd_error}</Text><Pressable onPress={dkd_load_profile} style={styles.retry}><Text style={styles.retryText}>Tekrar Dene</Text></Pressable><Pressable onPress={() => supabase.auth.signOut()} style={styles.logoutMini}><Text style={styles.logoutMiniText}>Çıkış Yap</Text></Pressable></View>;
