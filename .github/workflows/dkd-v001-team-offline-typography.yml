@@ -1,0 +1,99 @@
+name: DKD v0.0.1 Team Offline Typography
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  dkd-update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Apply panel changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          service = Path('src/services/panelService.js')
+          text = service.read_text()
+          marker = "export async function dkd_panel_unlink_courier(dkd_user_id_value) {"
+          addition = """export async function dkd_panel_force_courier_offline(dkd_user_id_value) {\n  const { data, error } = await supabase.rpc('dkd_business_courier_force_offline_dkd', { dkd_param_courier_user_id: dkd_user_id_value });\n  if (error) throw new Error(dkd_error_message(error));\n  return data || {};\n}\n\n"""
+          if 'dkd_panel_force_courier_offline' not in text:
+              if marker not in text:
+                  raise SystemExit('panelService offline marker missing')
+              text = text.replace(marker, addition + marker)
+          service.write_text(text)
+
+          screen = Path('src/screens/CouriersScreen.js')
+          text = screen.read_text()
+          old_import = "  dkd_panel_fetch_courier_earnings, dkd_panel_fetch_couriers, dkd_panel_link_courier,\n  dkd_panel_search_couriers, dkd_panel_set_courier_rate, dkd_panel_unlink_courier,"
+          new_import = "  dkd_panel_fetch_courier_earnings, dkd_panel_fetch_couriers, dkd_panel_force_courier_offline, dkd_panel_link_courier,\n  dkd_panel_search_couriers, dkd_panel_set_courier_rate, dkd_panel_unlink_courier,"
+          if old_import in text:
+              text = text.replace(old_import, new_import)
+
+          unlink_block = """  const dkd_unlink = (dkd_courier) => Alert.alert('Kurye bağlantısını kaldır', `${dkd_courier.dkd_display_name} işletmeden ayrılsın mı? Geçmiş kazanç kayıtları korunur.`, [\n    { text: 'Vazgeç', style: 'cancel' },\n    { text: 'Bağlantıyı Kaldır', style: 'destructive', onPress: async () => { try { await dkd_panel_unlink_courier(dkd_courier.dkd_courier_user_id); dkd_load(); } catch (dkd_error_value) { dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } } },\n  ]);\n"""
+          offline_block = unlink_block + """  const dkd_force_offline = (dkd_courier) => Alert.alert(\n    'Kuryeyi çevrimdışı yap',\n    `${dkd_courier.dkd_display_name} şimdi çevrimdışı yapılsın mı? Saatlik çalışma sayacı bu anda durur. Kabul edilmiş aktif teslimat varsa iptal edilmez.`,\n    [\n      { text: 'Vazgeç', style: 'cancel' },\n      { text: 'Çevrimdışı Yap', style: 'destructive', onPress: async () => {\n        try {\n          await dkd_panel_force_courier_offline(dkd_courier.dkd_courier_user_id);\n          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => null);\n          dkd_load();\n        } catch (dkd_error_value) {\n          dkd_set_error(String(dkd_error_value.message || dkd_error_value));\n        }\n      } },\n    ],\n  );\n"""
+          if 'const dkd_force_offline' not in text:
+              if unlink_block not in text:
+                  raise SystemExit('CouriersScreen unlink block missing')
+              text = text.replace(unlink_block, offline_block)
+
+          old_actions = """          <View style={styles.actionRow}><Pressable onPress={() => dkd_set_earnings_courier(dkd_courier)} style={styles.actionButton}><MaterialCommunityIcons name=\"chart-line\" size={17} color={dkd_theme.green} /><Text style={styles.actionText}>Kazanç</Text></Pressable><Pressable onPress={() => dkd_set_rate_courier(dkd_courier)} style={styles.actionButton}><MaterialCommunityIcons name=\"cash-edit\" size={17} color={dkd_theme.cyan} /><Text style={styles.actionText}>Ücret</Text></Pressable><Pressable onPress={() => dkd_unlink(dkd_courier)} style={styles.actionButton}><MaterialCommunityIcons name=\"link-variant-off\" size={17} color={dkd_theme.red} /><Text style={[styles.actionText, { color: '#FF9EAA' }]}>Ayır</Text></Pressable></View>\n"""
+          new_actions = """          {dkd_courier.dkd_is_online ? <Pressable onPress={() => dkd_force_offline(dkd_courier)} style={styles.offlineButton}><MaterialCommunityIcons name=\"power\" size={19} color=\"#FFD18B\" /><View style={{ flex: 1 }}><Text style={styles.offlineButtonTitle}>Çevrimdışı Yap</Text><Text style={styles.offlineButtonSub}>Çalışma sayacını şimdi durdur</Text></View><MaterialCommunityIcons name=\"chevron-right\" size={19} color=\"#FFD18B\" /></Pressable> : null}\n          <View style={styles.actionRow}><Pressable onPress={() => dkd_set_earnings_courier(dkd_courier)} style={styles.actionButton}><MaterialCommunityIcons name=\"chart-line\" size={18} color={dkd_theme.green} /><Text style={styles.actionText}>Kazanç</Text></Pressable><Pressable onPress={() => dkd_set_rate_courier(dkd_courier)} style={styles.actionButton}><MaterialCommunityIcons name=\"cash-edit\" size={18} color={dkd_theme.cyan} /><Text style={styles.actionText}>Ücret</Text></Pressable><Pressable onPress={() => dkd_unlink(dkd_courier)} style={styles.actionButton}><MaterialCommunityIcons name=\"link-variant-off\" size={18} color={dkd_theme.red} /><Text style={[styles.actionText, { color: '#FF9EAA' }]}>Ayır</Text></Pressable></View>\n"""
+          if old_actions in text:
+              text = text.replace(old_actions, new_actions)
+          elif 'styles.offlineButton' not in text:
+              raise SystemExit('CouriersScreen action block missing')
+
+          style_marker = "  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.65)' },"
+          offline_styles = """  offlineButton: { minHeight: 58, borderRadius: 16, marginTop: 11, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(255,158,78,.09)', borderWidth: 1, borderColor: 'rgba(255,193,112,.22)' },\n  offlineButtonTitle: { color: '#FFD8A0', fontSize: 12, fontWeight: '900' }, offlineButtonSub: { color: '#B89C7F', fontSize: 10, fontWeight: '700', marginTop: 2 },\n"""
+          if 'offlineButtonTitle' not in text:
+              if style_marker not in text:
+                  raise SystemExit('CouriersScreen style marker missing')
+              text = text.replace(style_marker, offline_styles + style_marker)
+          screen.write_text(text)
+
+          # Readability pass: only raise genuinely tiny UI text; preserve large headings and layout.
+          targets = list(Path('src/screens').glob('*.js')) + list(Path('src/components').glob('*.js'))
+          def raise_small_fonts(content):
+              def repl(match):
+                  raw = match.group(1)
+                  val = float(raw)
+                  if val <= 8:
+                      new = val + 2.5
+                  elif val <= 10:
+                      new = val + 2
+                  elif val <= 12:
+                      new = val + 1.5
+                  else:
+                      return match.group(0)
+                  out = f'{new:.1f}'.rstrip('0').rstrip('.')
+                  return 'fontSize: ' + out
+              return re.sub(r'fontSize:\s*(\d+(?:\.\d+)?)', repl, content)
+          for path in targets:
+              path.write_text(raise_small_fonts(path.read_text()))
+          PY
+      - name: Install
+        run: npm ci
+      - name: Expo Doctor
+        run: npx expo-doctor@latest --verbose
+      - name: Android Metro bundle
+        run: npx expo export --platform android --output-dir /tmp/dkd-panel-export
+      - name: Commit application changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src package-lock.json
+          git commit -m "feat: add courier force-offline control and improve readability" || exit 0
+          git push
