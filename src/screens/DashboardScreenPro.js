@@ -6,6 +6,7 @@ import {
   DkdMetricCard, DkdPeriodTabs, DkdSectionTitle, DkdStatusPill, dkd_money,
 } from '../components/PanelComponents';
 import { RacingMotorcycle } from '../components/RacingMotorcycle';
+import CourierLiveDetailModal from '../components/CourierLiveDetailModal';
 import { dkd_gradients, dkd_theme } from '../lib/theme';
 import { dkd_panel_fetch_couriers, dkd_panel_fetch_dashboard, dkd_panel_fetch_orders } from '../services/panelService';
 
@@ -32,6 +33,7 @@ export default function DashboardScreenPro({ business, refreshSignal = 0 }) {
   const [dkd_loading, dkd_set_loading] = useState(true);
   const [dkd_refreshing, dkd_set_refreshing] = useState(false);
   const [dkd_error, dkd_set_error] = useState('');
+  const [dkd_selected_courier_id, dkd_set_selected_courier_id] = useState(null);
 
   const dkd_load = useCallback(async (dkd_silent = false) => {
     if (!dkd_silent) dkd_set_refreshing(true);
@@ -55,6 +57,12 @@ export default function DashboardScreenPro({ business, refreshSignal = 0 }) {
   const dkd_period_data = dkd_data?.[dkd_period] || {};
   const dkd_active_orders = useMemo(() => dkd_orders.filter((dkd_order) => !['completed', 'delivered', 'cancelled', 'canceled'].includes(String(dkd_order.dkd_status || '').toLowerCase())).slice(0, 4), [dkd_orders]);
   const dkd_online_couriers = useMemo(() => dkd_couriers.filter((dkd_item) => dkd_item.dkd_is_online).slice(0, 4), [dkd_couriers]);
+  const dkd_selected_courier = useMemo(() => dkd_couriers.find((dkd_item) => String(dkd_item.dkd_courier_user_id) === String(dkd_selected_courier_id || '')) || null, [dkd_couriers, dkd_selected_courier_id]);
+  const dkd_selected_order = useMemo(() => dkd_orders.find((dkd_order) => {
+    const dkd_status_value = String(dkd_order.dkd_status || '').toLowerCase();
+    const dkd_is_active_value = !['completed', 'delivered', 'cancelled', 'canceled'].includes(dkd_status_value);
+    return dkd_is_active_value && String(dkd_order.dkd_courier_user_id || '') === String(dkd_selected_courier_id || '');
+  }) || null, [dkd_orders, dkd_selected_courier_id]);
 
   if (dkd_loading) return <View style={styles.loader}><ActivityIndicator size="large" color={dkd_theme.cyan} /><Text style={styles.loaderText}>Panel hazırlanıyor…</Text></View>;
 
@@ -90,11 +98,11 @@ export default function DashboardScreenPro({ business, refreshSignal = 0 }) {
       </View>
 
       {dkd_online_couriers.length > 0 && <View style={styles.operationCourierList}>
-        {dkd_online_couriers.map((dkd_courier, dkd_index) => <View key={dkd_courier.dkd_courier_user_id} style={[styles.operationCourierRow, dkd_index > 0 && styles.operationCourierBorder]}>
+        {dkd_online_couriers.map((dkd_courier, dkd_index) => <Pressable key={dkd_courier.dkd_courier_user_id} onPress={() => dkd_set_selected_courier_id(dkd_courier.dkd_courier_user_id)} style={({ pressed }) => [styles.operationCourierRow, dkd_index > 0 && styles.operationCourierBorder, pressed && styles.operationCourierPressed]}>
           <LinearGradient colors={['rgba(99,235,255,.18)', 'rgba(98,240,182,.13)']} style={styles.avatar}><RacingMotorcycle color="#75E8FF" accentColor="#F5FAFF" size={39} /></LinearGradient>
           <View style={styles.rowCopy}><Text style={styles.rowTitle}>{dkd_courier.dkd_display_name}</Text><Text style={styles.rowSub}>{dkd_courier.dkd_plate_no || 'Plaka yok'} • {dkd_courier.dkd_city || 'Bölge yok'}</Text></View>
-          <DkdStatusPill text="ONLINE" tone="green" />
-        </View>)}
+          <DkdStatusPill text="ONLINE" tone="green" /><MaterialCommunityIcons name="chevron-right" size={21} color="#84E9FF" />
+        </Pressable>)}
       </View>}
     </LinearGradient>
 
@@ -106,6 +114,7 @@ export default function DashboardScreenPro({ business, refreshSignal = 0 }) {
         <DkdStatusPill text={String(dkd_order.dkd_status || 'bekliyor').toUpperCase()} tone={dkd_order.dkd_courier_user_id ? 'blue' : 'yellow'} />
       </View>)}
     </View>
+    <CourierLiveDetailModal visible={Boolean(dkd_selected_courier_id)} courier={dkd_selected_courier} order={dkd_selected_order} onClose={() => dkd_set_selected_courier_id(null)} />
     <View style={styles.bottomSpacer} />
   </ScrollView>;
 }
