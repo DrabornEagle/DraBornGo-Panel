@@ -39,6 +39,12 @@
     },
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a597c3fc-0708-4e3f-a1fc-faa0b86d30ee"
+      }
+    },
+    "owner": "draborneagle"
   }
 }
