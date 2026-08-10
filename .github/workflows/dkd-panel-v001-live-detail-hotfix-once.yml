@@ -1,0 +1,55 @@
+name: DKD Panel Live Detail Hotfix Once
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  dkd-live-detail-hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Apply live detail edge-case fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          modal_path = Path('src/components/CourierLiveDetailModal.js')
+          modal = modal_path.read_text()
+          old = "function dkd_number_or_null(dkd_value) {\n  const dkd_number_value = Number(dkd_value);"
+          new = "function dkd_number_or_null(dkd_value) {\n  if (dkd_value == null || dkd_value === '') return null;\n  const dkd_number_value = Number(dkd_value);"
+          if old not in modal: raise SystemExit('coordinate normalizer marker missing')
+          modal = modal.replace(old, new, 1)
+          modal_path.write_text(modal)
+
+          dashboard_path = Path('src/screens/DashboardScreenPro.js')
+          dashboard = dashboard_path.read_text()
+          dashboard = dashboard.replace('dkd_panel_fetch_dashboard(), dkd_panel_fetch_orders(20), dkd_panel_fetch_couriers(),', 'dkd_panel_fetch_dashboard(), dkd_panel_fetch_orders(100), dkd_panel_fetch_couriers(),', 1)
+          if 'operationCourierPressed:' not in dashboard:
+              old_style = "operationCourierRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }, operationCourierBorder:"
+              new_style = "operationCourierRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }, operationCourierPressed: { opacity: .74, transform: [{ scale: .992 }] }, operationCourierBorder:"
+              if old_style not in dashboard: raise SystemExit('pressed style marker missing')
+              dashboard = dashboard.replace(old_style, new_style, 1)
+          dashboard_path.write_text(dashboard)
+          PY
+      - name: Clean install
+        run: npm ci --ignore-scripts
+      - name: Expo Doctor
+        run: npx expo-doctor@latest
+      - name: Android Metro export
+        run: npx expo export --platform android --output-dir /tmp/dkd-panel-live-hotfix-export --clear
+      - name: Commit validated hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/CourierLiveDetailModal.js src/screens/DashboardScreenPro.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: harden live courier coordinate handling"
+          git push origin HEAD:${{ github.head_ref }}
