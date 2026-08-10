@@ -1,0 +1,45 @@
+name: DraBornGo Panel v0.0.2 final label hotfix once
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dkd-panel-v002-final-label-hotfix-once.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch current Panel labels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          dashboard = Path('src/screens/DashboardScreenPro.js')
+          value = dashboard.read_text()
+          value = value.replace('DRABORNGO PANEL • v0.0.1', 'DRABORNGO PANEL • v0.0.2')
+          dashboard.write_text(value)
+
+          live = Path('src/components/CourierLiveDetailModal.js')
+          value = live.read_text()
+          value = value.replace('>ETA</Text>', '>VARIŞ</Text>')
+          value = value.replace('>ETA<', '>VARIŞ<')
+          live.write_text(value)
+          PY
+      - name: Validate Android Metro bundle
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir dist-final-hotfix
+      - name: Record and clean workflow
+        run: |
+          printf 'DraBornGo Panel v0.0.2 final UI labels validated: Metro Android export passed. No APK/AAB built.\n' > .github/dkd-v0.0.2-final-ui-validation.txt
+          rm -f .github/workflows/dkd-panel-v002-final-label-hotfix-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: finalize Panel v0.0.2 version and VARIŞ labels'
+          git push
