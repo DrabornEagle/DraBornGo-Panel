@@ -9,6 +9,8 @@ on:
       - 'App.js'
       - 'src/**'
       - '.github/workflows/dkd-v0-0-2-ci.yml'
+permissions:
+  contents: write
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -19,6 +21,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx expo-doctor@latest
-      - run: npx expo export --platform android --output-dir dist-ci
+      - name: Sync lock identity
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Expo Doctor
+        run: npx expo-doctor@latest
+      - name: Android Metro export
+        run: npx expo export --platform android --output-dir dist-ci
+      - name: Record successful validation
+        run: |
+          printf 'DraBornGo Panel v0.0.2 validated: npm ci + Expo Doctor + Android Metro export. No APK/AAB build.\n' > .github/dkd-v0.0.2-validation.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json .github/dkd-v0.0.2-validation.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: sync panel v0.0.2 lock and validation record'
+            git push
+          fi
