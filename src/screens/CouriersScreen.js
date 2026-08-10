@@ -27,6 +27,12 @@ function DkdRateModal({ courier, onClose, onSaved }) {
   const [dkd_hourly, dkd_set_hourly] = useState(String(courier?.dkd_hourly_rate_tl ?? '0'));
   const [dkd_saving, dkd_set_saving] = useState(false);
   const [dkd_error, dkd_set_error] = useState('');
+  useEffect(() => {
+    if (!courier) return;
+    dkd_set_package(String(courier.dkd_package_fee_tl ?? '0'));
+    dkd_set_hourly(String(courier.dkd_hourly_rate_tl ?? '0'));
+    dkd_set_error('');
+  }, [courier]);
   if (!courier) return null;
   const dkd_save = async () => {
     dkd_set_saving(true); dkd_set_error('');
