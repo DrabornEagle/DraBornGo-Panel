@@ -1,6 +1,9 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { supabase } from '../lib/supabase';
 
 const dkd_panel_notification_channel_value = 'draborngo-panel-orders';
 const dkd_panel_seen_order_storage_key_value = 'dkd_panel_notified_order_ids_v1';
@@ -8,6 +11,9 @@ const dkd_panel_seen_order_limit_value = 80;
 let dkd_panel_notification_primed_value = false;
 
 function dkd_text_value(dkd_value) { return String(dkd_value ?? '').trim(); }
+function dkd_panel_project_id_value() {
+  return dkd_text_value(Constants?.easConfig?.projectId || Constants?.expoConfig?.extra?.eas?.projectId);
+}
 
 export async function dkd_panel_prime_notifications() {
   try {
@@ -40,6 +46,28 @@ export async function dkd_panel_prime_notifications() {
       });
     }
     return { dkd_ok_value: true };
+  } catch (dkd_error_value) {
+    return { dkd_ok_value: false, dkd_reason_value: dkd_error_value?.message || String(dkd_error_value) };
+  }
+}
+
+export async function dkd_panel_register_remote_push() {
+  try {
+    const dkd_prime_value = await dkd_panel_prime_notifications();
+    if (!dkd_prime_value?.dkd_ok_value) return dkd_prime_value;
+    if (!Device?.isDevice) return { dkd_ok_value: false, dkd_reason_value: 'physical_device_required' };
+    const dkd_project_id_value = dkd_panel_project_id_value();
+    if (!dkd_project_id_value) return { dkd_ok_value: false, dkd_reason_value: 'missing_project_id' };
+    const dkd_token_value = dkd_text_value((await Notifications.getExpoPushTokenAsync({ projectId: dkd_project_id_value }))?.data);
+    if (!dkd_token_value) return { dkd_ok_value: false, dkd_reason_value: 'missing_expo_push_token' };
+    const { error: dkd_error_value } = await supabase.rpc('dkd_upsert_push_token', {
+      dkd_param_token: dkd_token_value,
+      dkd_param_platform: Platform.OS,
+      dkd_param_app_mode: 'draborngo-panel-release',
+      dkd_param_device_name: dkd_text_value(Device?.deviceName) || null,
+    });
+    if (dkd_error_value) throw dkd_error_value;
+    return { dkd_ok_value: true, dkd_token_value };
   } catch (dkd_error_value) {
     return { dkd_ok_value: false, dkd_reason_value: dkd_error_value?.message || String(dkd_error_value) };
   }
@@ -80,6 +108,7 @@ export async function dkd_panel_notify_new_order(dkd_order_value = {}) {
         body: `#${dkd_ref_value} • ${dkd_title_value}${dkd_dropoff_value ? ` • ${dkd_dropoff_value}` : ''}`,
         sound: 'default',
         priority: Notifications.AndroidNotificationPriority?.MAX,
+        channelId: dkd_panel_notification_channel_value,
         data: { route: 'orders', screen: 'orders', dkd_job_id: dkd_order_id_value },
       },
       trigger: null,
