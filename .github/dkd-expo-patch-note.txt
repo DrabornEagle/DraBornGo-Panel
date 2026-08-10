@@ -1,0 +1,1 @@
+Temporary validation note for Expo SDK 57 patch alignment.
