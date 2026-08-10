@@ -1,100 +1,20 @@
-name: DKD Panel Package Count Racing Motor Once
+name: DKD Panel Lock Validate Once
 on:
-  push:
+  pull_request:
     branches: [main]
 permissions:
   contents: write
 jobs:
-  dkd-apply:
-    if: github.actor != 'github-actions[bot]'
+  dkd-lock-validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
-      - name: Apply courier package counts and racing motorcycle
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          courier_path = Path('src/screens/CouriersScreenPro.js')
-          courier = courier_path.read_text()
-
-          old = "import { DkdEmptyState, DkdPeriodTabs, DkdStatusPill, dkd_duration, dkd_money } from '../components/PanelComponents';\n"
-          new = old + "import { RacingMotorcycle } from '../components/RacingMotorcycle';\n"
-          if "../components/RacingMotorcycle" not in courier:
-              if old not in courier: raise SystemExit('courier import marker missing')
-              courier = courier.replace(old, new, 1)
-
-          old = "  const [dkd_visible_count, dkd_set_visible_count] = useState(5);\n"
-          new = old + "  const [dkd_package_counts, dkd_set_package_counts] = useState({});\n"
-          if "dkd_package_counts" not in courier:
-              if old not in courier: raise SystemExit('courier count state marker missing')
-              courier = courier.replace(old, new, 1)
-
-          marker = "  const dkd_visible_couriers = useMemo(() => dkd_filtered_couriers.slice(0, dkd_visible_count), [dkd_filtered_couriers, dkd_visible_count]);\n"
-          effect = marker + """  useEffect(() => {
-    let dkd_active_value = true;
-    const dkd_missing_value = dkd_visible_couriers.filter((dkd_item) => !dkd_package_counts[dkd_item.dkd_courier_user_id]);
-    if (!dkd_missing_value.length) return () => { dkd_active_value = false; };
-    Promise.all(dkd_missing_value.map(async (dkd_item) => {
-      try {
-        const dkd_summary_value = await dkd_panel_fetch_courier_earnings(dkd_item.dkd_courier_user_id);
-        return [dkd_item.dkd_courier_user_id, {
-          dkd_daily_packages: Number(dkd_summary_value?.daily?.dkd_completed_jobs || 0),
-          dkd_monthly_packages: Number(dkd_summary_value?.monthly?.dkd_completed_jobs || 0),
-        }];
-      } catch {
-        return [dkd_item.dkd_courier_user_id, {
-          dkd_daily_packages: Number(dkd_item?.dkd_today?.dkd_completed_jobs || 0),
-          dkd_monthly_packages: 0,
-        }];
-      }
-    })).then((dkd_entries_value) => {
-      if (!dkd_active_value) return;
-      dkd_set_package_counts((dkd_previous_value) => ({ ...dkd_previous_value, ...Object.fromEntries(dkd_entries_value) }));
-    });
-    return () => { dkd_active_value = false; };
-  }, [dkd_visible_couriers, dkd_package_counts]);
-"""
-          if "dkd_missing_value" not in courier:
-              if marker not in courier: raise SystemExit('courier visible marker missing')
-              courier = courier.replace(marker, effect, 1)
-
-          old = '<View style={styles.heroIcon}><MaterialCommunityIcons name="account-group" size={30} color="#07121D" /></View>'
-          new = '<LinearGradient colors={[\'#0A2035\', \'#102A49\']} style={styles.heroIcon}><RacingMotorcycle color="#68EAFF" accentColor="#F5FAFF" size={54} /></LinearGradient>'
-          if old in courier:
-              courier = courier.replace(old, new, 1)
-
-          old = '<LinearGradient colors={dkd_courier.dkd_is_online ? [\'#5DE8FF\', \'#61F0B5\'] : [\'#31405B\', \'#263047\']} style={styles.avatarLarge}><MaterialCommunityIcons name="motorbike" size={29} color={dkd_courier.dkd_is_online ? \'#06151B\' : \'#B6C7DE\'} /></LinearGradient>'
-          new = '<LinearGradient colors={dkd_courier.dkd_is_online ? [\'#0B2D39\', \'#15304A\'] : [\'#202B3E\', \'#182235\']} style={styles.avatarLarge}><RacingMotorcycle color={dkd_courier.dkd_is_online ? "#62F0D0" : "#7895B8"} accentColor="#F5FAFF" size={57} /></LinearGradient>'
-          if old not in courier: raise SystemExit('courier avatar marker missing')
-          courier = courier.replace(old, new, 1)
-
-          old = '<LinearGradient colors={[\'rgba(255,194,92,.17)\', \'rgba(255,132,78,.07)\']} style={styles.rateTile}><MaterialCommunityIcons name="package-variant-closed" size={20} color="#FFD071" /><Text style={styles.rateLabel}>PAKET BAŞI</Text><Text style={styles.rateValue}>{dkd_money(dkd_courier.dkd_package_fee_tl)}</Text></LinearGradient>\n            <LinearGradient colors={[\'rgba(91,222,255,.18)\', \'rgba(70,124,255,.08)\']} style={styles.rateTile}><MaterialCommunityIcons name="timer-outline" size={20} color="#77EAFF" /><Text style={styles.rateLabel}>SAATLİK SABİT</Text><Text style={styles.rateValue}>{dkd_money(dkd_courier.dkd_hourly_rate_tl)}</Text></LinearGradient>'
-          new = '<LinearGradient colors={[\'rgba(255,194,92,.17)\', \'rgba(255,132,78,.07)\']} style={styles.rateTile}><MaterialCommunityIcons name="package-variant-closed-check" size={20} color="#FFD071" /><Text style={styles.rateLabel}>GÜNLÜK PAKET</Text><Text style={styles.rateValue}>{dkd_package_counts[dkd_courier.dkd_courier_user_id]?.dkd_daily_packages ?? Number(dkd_courier?.dkd_today?.dkd_completed_jobs || 0)}</Text></LinearGradient>\n            <LinearGradient colors={[\'rgba(91,222,255,.18)\', \'rgba(70,124,255,.08)\']} style={styles.rateTile}><MaterialCommunityIcons name="calendar-month-outline" size={20} color="#77EAFF" /><Text style={styles.rateLabel}>AYLIK PAKET</Text><Text style={styles.rateValue}>{dkd_package_counts[dkd_courier.dkd_courier_user_id]?.dkd_monthly_packages ?? 0}</Text></LinearGradient>'
-          if old not in courier: raise SystemExit('courier rate tiles marker missing')
-          courier = courier.replace(old, new, 1)
-          courier_path.write_text(courier)
-
-          dashboard_path = Path('src/screens/DashboardScreenPro.js')
-          dashboard = dashboard_path.read_text()
-          old = "import { DkdMetricCard, DkdPeriodTabs, DkdSectionTitle, DkdStatusPill, dkd_money,\n} from '../components/PanelComponents';\n"
-          # Handle actual multiline import block robustly.
-          if "../components/RacingMotorcycle" not in dashboard:
-              marker = "import { dkd_gradients, dkd_theme } from '../lib/theme';\n"
-              if marker not in dashboard: raise SystemExit('dashboard import marker missing')
-              dashboard = dashboard.replace(marker, "import { RacingMotorcycle } from '../components/RacingMotorcycle';\n" + marker, 1)
-
-          old = '<LinearGradient colors={[\'#66E8FF\', \'#67F0B2\']} style={styles.operationIcon}><MaterialCommunityIcons name="bike-fast" size={27} color="#07131D" /></LinearGradient>'
-          new = '<LinearGradient colors={[\'#071D30\', \'#102D49\']} style={styles.operationIcon}><RacingMotorcycle color="#65E9FF" accentColor="#F5FAFF" size={50} /></LinearGradient>'
-          if old not in dashboard: raise SystemExit('dashboard racing icon marker missing')
-          dashboard = dashboard.replace(old, new, 1)
-          dashboard_path.write_text(dashboard)
-          PY
       - name: Refresh lock file
         run: npm install --package-lock-only --ignore-scripts
       - name: Clean install
@@ -103,11 +23,14 @@ jobs:
         run: npx expo-doctor@latest
       - name: Android Metro export
         run: npx expo export --platform android --output-dir /tmp/dkd-panel-export --clear
-      - name: Commit validated update
+      - name: Commit refreshed lock to PR branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json src/screens/CouriersScreenPro.js src/screens/DashboardScreenPro.js
-          git diff --cached --quiet && exit 0
-          git commit -m "feat: show courier package counts and DraBornGate racing motorcycle"
-          git push
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lock file already current."
+            exit 0
+          fi
+          git commit -m "chore: sync react-native-svg lockfile"
+          git push origin HEAD:${{ github.head_ref }}
