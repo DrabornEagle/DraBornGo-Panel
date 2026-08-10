@@ -1,0 +1,40 @@
+name: DraBornGo Panel v0.0.2 realtime notification patch
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/dkd_panel_patch_trigger/**'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply source patch
+        run: node scripts/dkd_apply_v002_realtime_notify_patch.mjs
+      - name: Sync lock
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Validate Android Metro bundle
+        run: npx expo export --platform android --output-dir dist-panel-hotfix
+      - name: Record and commit patch
+        shell: bash
+        run: |
+          printf 'DraBornGo Panel v0.0.2 realtime orders, notifications, report detail and fullscreen route validation passed.\n' > .github/dkd-panel-v0.0.2-realtime-validation.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add App.js app.json package.json package-lock.json src .github/dkd-panel-v0.0.2-realtime-validation.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: panel v0.0.2 realtime notifications and route tools'
+            git push
+          fi
