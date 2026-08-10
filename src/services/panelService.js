@@ -136,6 +136,12 @@ export async function dkd_panel_set_courier_rate(dkd_user_id_value, dkd_package_
   return data;
 }
 
+export async function dkd_panel_force_courier_offline(dkd_user_id_value) {
+  const { data, error } = await supabase.rpc('dkd_business_courier_force_offline_dkd', { dkd_param_courier_user_id: dkd_user_id_value });
+  if (error) throw new Error(dkd_error_message(error));
+  return data || {};
+}
+
 export async function dkd_panel_unlink_courier(dkd_user_id_value) {
   const { data, error } = await supabase.rpc('dkd_business_courier_unlink_dkd', { dkd_param_courier_user_id: dkd_user_id_value });
   if (error) throw new Error(dkd_error_message(error));
