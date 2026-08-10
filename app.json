@@ -5,9 +5,20 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "plugins": [
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "hidden": false,
+          "style": "dark"
+        }
+      ]
+    ],
     "android": {
       "package": "com.draborneagle.draborngopanel",
       "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#07111F"
       }
