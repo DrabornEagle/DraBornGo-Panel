@@ -25,7 +25,10 @@
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
-    "react-native-url-polyfill": "^3.0.0"
+    "react-native-url-polyfill": "^3.0.0",
+    "expo-constants": "~57.0.0",
+    "expo-device": "~57.0.0",
+    "expo-notifications": "~57.0.0"
   },
   "engines": {
     "node": ">=22.13.0"

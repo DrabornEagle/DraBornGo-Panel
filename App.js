@@ -14,6 +14,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import { dkd_theme } from './src/lib/theme';
 import { dkd_supabase_ready, supabase } from './src/lib/supabase';
 import { dkd_panel_ensure_business_profile, dkd_panel_fetch_business_profile, dkd_panel_subscribe_live } from './src/services/panelService';
+import { dkd_panel_notify_new_order, dkd_panel_prime_notifications } from './src/services/dkd_panel_notification_service';
 
 const dkd_tabs = [
   { key: 'dashboard', label: 'Özet', icon: 'view-dashboard-outline', activeIcon: 'view-dashboard' },
@@ -52,7 +53,13 @@ function DkdAuthenticatedApp({ session }) {
   }, [session?.user]);
 
   useEffect(() => { dkd_load_profile(); }, [dkd_load_profile]);
-  useEffect(() => dkd_panel_subscribe_live(() => dkd_set_refresh_signal((dkd_value) => dkd_value + 1)), []);
+  useEffect(() => { dkd_panel_prime_notifications().catch(() => null); }, []);
+  useEffect(() => dkd_panel_subscribe_live((dkd_payload_value) => {
+    dkd_set_refresh_signal((dkd_value) => dkd_value + 1);
+    if (String(dkd_payload_value?.table || '') === 'dkd_courier_jobs' && String(dkd_payload_value?.eventType || '').toUpperCase() === 'INSERT') {
+      dkd_panel_notify_new_order(dkd_payload_value?.new || {}).catch(() => null);
+    }
+  }), []);
 
   if (dkd_loading) return <View style={styles.loading}><ActivityIndicator color={dkd_theme.cyan} size="large" /><Text style={styles.loadingText}>İşletme hesabı hazırlanıyor…</Text></View>;
   if (dkd_error) return <View style={styles.loading}><MaterialCommunityIcons name="alert-circle-outline" size={36} color={dkd_theme.red} /><Text style={styles.errorTitle}>Panel açılamadı</Text><Text style={styles.errorText}>{dkd_error}</Text><Pressable onPress={dkd_load_profile} style={styles.retry}><Text style={styles.retryText}>Tekrar Dene</Text></Pressable><Pressable onPress={() => supabase.auth.signOut()} style={styles.logoutMini}><Text style={styles.logoutMiniText}>Çıkış Yap</Text></Pressable></View>;

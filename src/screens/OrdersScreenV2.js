@@ -8,7 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { dkd_theme } from '../lib/theme';
 import { DkdEmptyState, DkdStatusPill, dkd_money } from '../components/PanelComponents';
-import { dkd_panel_create_order, dkd_panel_fetch_orders } from '../services/panelService';
+import { dkd_panel_create_order, dkd_panel_fetch_orders, dkd_panel_subscribe_live } from '../services/panelService';
 
 function dkd_status_tone(dkd_status_value) {
   const dkd_value = String(dkd_status_value || '').toLowerCase();
@@ -82,8 +82,13 @@ export default function OrdersScreenV2({ refreshSignal = 0 }) {
   const [dkd_loading, dkd_set_loading] = useState(true); const [dkd_refreshing, dkd_set_refreshing] = useState(false);
   const [dkd_selected, dkd_set_selected] = useState(null); const [dkd_add_open, dkd_set_add_open] = useState(false); const [dkd_error, dkd_set_error] = useState('');
   const dkd_intro = useRef(new Animated.Value(0)).current; const dkd_pulse = useRef(new Animated.Value(0)).current;
-  const dkd_load = useCallback(async () => { dkd_set_refreshing(true); dkd_set_error(''); try { dkd_set_orders(await dkd_panel_fetch_orders(250)); } catch (dkd_error_value) { dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } finally { dkd_set_loading(false); dkd_set_refreshing(false); } }, []);
-  useEffect(() => { dkd_load(); }, [dkd_load, refreshSignal]);
+  const dkd_load = useCallback(async (dkd_silent_value = false) => { if (!dkd_silent_value) dkd_set_refreshing(true); dkd_set_error(''); try { dkd_set_orders(await dkd_panel_fetch_orders(250)); } catch (dkd_error_value) { dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } finally { dkd_set_loading(false); if (!dkd_silent_value) dkd_set_refreshing(false); } }, []);
+  useEffect(() => { dkd_load(false); }, [dkd_load, refreshSignal]);
+  useEffect(() => {
+    const dkd_unsubscribe_value = dkd_panel_subscribe_live((dkd_payload_value) => { if (String(dkd_payload_value?.table || '') === 'dkd_courier_jobs') dkd_load(true); });
+    const dkd_poll_value = setInterval(() => dkd_load(true), 5000);
+    return () => { clearInterval(dkd_poll_value); dkd_unsubscribe_value?.(); };
+  }, [dkd_load]);
   useEffect(() => { Animated.spring(dkd_intro, { toValue: 1, speed: 13, bounciness: 5, useNativeDriver: true }).start(); const dkd_loop = Animated.loop(Animated.sequence([Animated.timing(dkd_pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }), Animated.timing(dkd_pulse, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true })])); dkd_loop.start(); return () => dkd_loop.stop(); }, [dkd_intro, dkd_pulse]);
   const dkd_filtered = useMemo(() => dkd_orders.filter((dkd_order) => { const dkd_status = String(dkd_order.dkd_status || '').toLowerCase(); const dkd_done = ['completed', 'delivered'].includes(dkd_status); const dkd_cancelled = ['cancelled', 'canceled'].includes(dkd_status); if (dkd_filter === 'active') return !dkd_done && !dkd_cancelled; if (dkd_filter === 'completed') return dkd_done; if (dkd_filter === 'cancelled') return dkd_cancelled; return true; }), [dkd_filter, dkd_orders]);
   const dkd_online_orders = dkd_orders.filter((dkd_order) => !['completed','delivered','cancelled','canceled'].includes(String(dkd_order.dkd_status || '').toLowerCase())).length;
