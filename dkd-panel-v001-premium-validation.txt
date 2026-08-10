@@ -1,3 +1,0 @@
-npm ci: PASS
-Expo Doctor: PASS
-Android Metro export: PASS
