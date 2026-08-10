@@ -7,8 +7,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AuthScreen from './src/screens/AuthScreen';
 import DashboardScreen from './src/screens/DashboardScreenPro';
-import OrdersScreen from './src/screens/OrdersScreen';
-import CouriersScreen from './src/screens/CouriersScreenPro';
+import OrdersScreen from './src/screens/OrdersScreenV2';
+import CouriersScreen from './src/screens/CouriersScreenV2';
+import ReportsScreen from './src/screens/ReportsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { dkd_theme } from './src/lib/theme';
 import { dkd_supabase_ready, supabase } from './src/lib/supabase';
@@ -16,15 +17,16 @@ import { dkd_panel_ensure_business_profile, dkd_panel_fetch_business_profile, dk
 
 const dkd_tabs = [
   { key: 'dashboard', label: 'Özet', icon: 'view-dashboard-outline', activeIcon: 'view-dashboard' },
-  { key: 'orders', label: 'Siparişler', icon: 'package-variant-closed', activeIcon: 'package-variant' },
+  { key: 'orders', label: 'Sipariş', icon: 'package-variant-closed', activeIcon: 'package-variant' },
   { key: 'couriers', label: 'Kuryeler', icon: 'bike-fast', activeIcon: 'motorbike' },
+  { key: 'reports', label: 'Rapor', icon: 'calendar-chart', activeIcon: 'chart-box' },
   { key: 'settings', label: 'Ayarlar', icon: 'cog-outline', activeIcon: 'cog' },
 ];
 
 function DkdBottomBar({ value, onChange }) {
   return <View style={styles.navWrap}><View style={styles.navBar}>{dkd_tabs.map((dkd_tab) => {
     const dkd_active = value === dkd_tab.key;
-    return <Pressable key={dkd_tab.key} onPress={() => { Haptics.selectionAsync().catch(() => null); onChange(dkd_tab.key); }} style={styles.navItem}><Animated.View style={[styles.navIcon, dkd_active && styles.navIconActive]}><MaterialCommunityIcons name={dkd_active ? dkd_tab.activeIcon : dkd_tab.icon} size={22} color={dkd_active ? '#07121D' : '#71839C'} /></Animated.View><Text style={[styles.navText, dkd_active && styles.navTextActive]}>{dkd_tab.label}</Text></Pressable>;
+    return <Pressable key={dkd_tab.key} onPress={() => { Haptics.selectionAsync().catch(() => null); onChange(dkd_tab.key); }} style={styles.navItem}><Animated.View style={[styles.navIcon, dkd_active && styles.navIconActive]}><MaterialCommunityIcons name={dkd_active ? dkd_tab.activeIcon : dkd_tab.icon} size={21} color={dkd_active ? '#07121D' : '#71839C'} /></Animated.View><Text numberOfLines={1} style={[styles.navText, dkd_active && styles.navTextActive]}>{dkd_tab.label}</Text></Pressable>;
   })}</View></View>;
 }
 
@@ -59,6 +61,7 @@ function DkdAuthenticatedApp({ session }) {
     {dkd_tab === 'dashboard' && <DashboardScreen business={dkd_business} refreshSignal={dkd_refresh_signal} />}
     {dkd_tab === 'orders' && <OrdersScreen refreshSignal={dkd_refresh_signal} />}
     {dkd_tab === 'couriers' && <CouriersScreen refreshSignal={dkd_refresh_signal} />}
+    {dkd_tab === 'reports' && <ReportsScreen refreshSignal={dkd_refresh_signal} />}
     {dkd_tab === 'settings' && <SettingsScreen business={dkd_business} onProfileUpdated={dkd_load_profile} />}
     <DkdBottomBar value={dkd_tab} onChange={dkd_set_tab} />
   </View>;
@@ -83,21 +86,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: dkd_theme.background },
-  appRoot: { flex: 1, backgroundColor: dkd_theme.background },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: dkd_theme.background, padding: 28, gap: 10 },
-  loadingText: { color: dkd_theme.textSoft, fontSize: 15, fontWeight: '800' },
-  errorTitle: { color: dkd_theme.text, fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  errorText: { color: dkd_theme.textSoft, fontSize: 14.5, lineHeight: 21, fontWeight: '700', textAlign: 'center', maxWidth: 340 },
-  retry: { marginTop: 10, minHeight: 50, minWidth: 140, borderRadius: 15, backgroundColor: dkd_theme.cyan, alignItems: 'center', justifyContent: 'center' },
-  retryText: { color: '#07121D', fontSize: 14, fontWeight: '900' },
-  logoutMini: { minHeight: 44, minWidth: 120, alignItems: 'center', justifyContent: 'center' },
-  logoutMiniText: { color: '#FF9EAA', fontSize: 13.5, fontWeight: '900' },
-  navWrap: { position: 'absolute', left: 12, right: 12, bottom: 9 },
-  navBar: { minHeight: 76, borderRadius: 26, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(8,17,30,.98)', borderWidth: 1, borderColor: 'rgba(166,217,255,.16)' },
-  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5 },
-  navIcon: { width: 40, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  navIconActive: { backgroundColor: dkd_theme.cyan },
-  navText: { color: '#71839C', fontSize: 13, fontWeight: '900' },
-  navTextActive: { color: '#CFF8FF' },
+  safe: { flex: 1, backgroundColor: dkd_theme.background }, appRoot: { flex: 1, backgroundColor: dkd_theme.background },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: dkd_theme.background, padding: 28, gap: 10 }, loadingText: { color: dkd_theme.textSoft, fontSize: 15, fontWeight: '800' }, errorTitle: { color: dkd_theme.text, fontSize: 22, fontWeight: '900', textAlign: 'center' }, errorText: { color: dkd_theme.textSoft, fontSize: 14.5, lineHeight: 21, fontWeight: '700', textAlign: 'center', maxWidth: 340 }, retry: { marginTop: 10, minHeight: 50, minWidth: 140, borderRadius: 15, backgroundColor: dkd_theme.cyan, alignItems: 'center', justifyContent: 'center' }, retryText: { color: '#07121D', fontSize: 14, fontWeight: '900' }, logoutMini: { minHeight: 44, minWidth: 120, alignItems: 'center', justifyContent: 'center' }, logoutMiniText: { color: '#FF9EAA', fontSize: 13.5, fontWeight: '900' },
+  navWrap: { position: 'absolute', left: 10, right: 10, bottom: 8 }, navBar: { minHeight: 76, borderRadius: 26, paddingHorizontal: 5, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(8,17,30,.98)', borderWidth: 1, borderColor: 'rgba(166,217,255,.16)' }, navItem: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 4 }, navIcon: { width: 37, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' }, navIconActive: { backgroundColor: dkd_theme.cyan }, navText: { color: '#71839C', fontSize: 11.5, fontWeight: '900' }, navTextActive: { color: '#CFF8FF' },
 });
