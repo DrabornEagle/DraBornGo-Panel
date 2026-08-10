@@ -14,7 +14,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import { dkd_theme } from './src/lib/theme';
 import { dkd_supabase_ready, supabase } from './src/lib/supabase';
 import { dkd_panel_ensure_business_profile, dkd_panel_fetch_business_profile, dkd_panel_subscribe_live } from './src/services/panelService';
-import { dkd_panel_notify_new_order, dkd_panel_prime_notifications } from './src/services/dkd_panel_notification_service';
+import { dkd_panel_notify_new_order, dkd_panel_prime_notifications, dkd_panel_register_remote_push } from './src/services/dkd_panel_notification_service';
 
 const dkd_tabs = [
   { key: 'dashboard', label: 'Özet', icon: 'view-dashboard-outline', activeIcon: 'view-dashboard' },
@@ -53,7 +53,14 @@ function DkdAuthenticatedApp({ session }) {
   }, [session?.user]);
 
   useEffect(() => { dkd_load_profile(); }, [dkd_load_profile]);
-  useEffect(() => { dkd_panel_prime_notifications().catch(() => null); }, []);
+  useEffect(() => {
+    let dkd_cancelled_value = false;
+    (async () => {
+      await dkd_panel_prime_notifications();
+      if (!dkd_cancelled_value) await dkd_panel_register_remote_push();
+    })().catch(() => null);
+    return () => { dkd_cancelled_value = true; };
+  }, [session?.user?.id]);
   useEffect(() => dkd_panel_subscribe_live((dkd_payload_value) => {
     dkd_set_refresh_signal((dkd_value) => dkd_value + 1);
     if (String(dkd_payload_value?.table || '') === 'dkd_courier_jobs' && String(dkd_payload_value?.eventType || '').toUpperCase() === 'INSERT') {
