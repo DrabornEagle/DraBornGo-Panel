@@ -8,6 +8,7 @@ import { RacingMotorcycle } from './RacingMotorcycle';
 import { dkd_theme } from '../lib/theme';
 
 function dkd_number_or_null(dkd_value) {
+  if (dkd_value == null || dkd_value === '') return null;
   const dkd_number_value = Number(dkd_value);
   return Number.isFinite(dkd_number_value) ? dkd_number_value : null;
 }
