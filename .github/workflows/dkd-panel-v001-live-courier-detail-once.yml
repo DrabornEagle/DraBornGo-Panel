@@ -1,0 +1,186 @@
+name: DKD Panel Live Courier Detail Once
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  dkd-live-detail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Apply live courier detail and single-line metrics
+        shell: bash
+        run: |
+          cat > src/components/CourierLiveDetailModal.js <<'EOF'
+          import React, { useMemo } from 'react';
+          import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+          import MapView, { Marker } from 'react-native-maps';
+          import { LinearGradient } from 'expo-linear-gradient';
+          import { MaterialCommunityIcons } from '@expo/vector-icons';
+          import { DkdStatusPill, dkd_money } from './PanelComponents';
+          import { RacingMotorcycle } from './RacingMotorcycle';
+          import { dkd_theme } from '../lib/theme';
+
+          function dkd_number_or_null(dkd_value) {
+            const dkd_number_value = Number(dkd_value);
+            return Number.isFinite(dkd_number_value) ? dkd_number_value : null;
+          }
+
+          function dkd_status_tone(dkd_status) {
+            const dkd_value = String(dkd_status || '').toLowerCase();
+            if (['completed', 'delivered'].includes(dkd_value)) return 'green';
+            if (['cancelled', 'canceled'].includes(dkd_value)) return 'red';
+            if (['accepted', 'picked_up', 'to_customer', 'delivering'].includes(dkd_value)) return 'blue';
+            return 'yellow';
+          }
+
+          function dkd_read_courier_coordinate(dkd_order, dkd_courier, dkd_axis) {
+            const dkd_candidates_value = dkd_axis === 'lat'
+              ? [dkd_order?.dkd_courier_lat, dkd_courier?.dkd_live_lat, dkd_courier?.dkd_courier_lat, dkd_courier?.lat]
+              : [dkd_order?.dkd_courier_lng, dkd_courier?.dkd_live_lng, dkd_courier?.dkd_courier_lng, dkd_courier?.lng];
+            for (const dkd_candidate_value of dkd_candidates_value) {
+              const dkd_number_value = dkd_number_or_null(dkd_candidate_value);
+              if (dkd_number_value != null) return dkd_number_value;
+            }
+            return null;
+          }
+
+          export default function CourierLiveDetailModal({ visible, courier, order, onClose }) {
+            const dkd_courier_lat = dkd_read_courier_coordinate(order, courier, 'lat');
+            const dkd_courier_lng = dkd_read_courier_coordinate(order, courier, 'lng');
+            const dkd_drop_lat = dkd_number_or_null(order?.dkd_dropoff_lat);
+            const dkd_drop_lng = dkd_number_or_null(order?.dkd_dropoff_lng);
+            const dkd_has_courier = dkd_courier_lat != null && dkd_courier_lng != null;
+            const dkd_has_drop = dkd_drop_lat != null && dkd_drop_lng != null;
+            const dkd_location_updated_at = order?.dkd_location_updated_at || courier?.dkd_location_updated_at || courier?.dkd_updated_at || null;
+            const dkd_region = useMemo(() => {
+              if (dkd_has_courier && dkd_has_drop) {
+                const dkd_lat_delta = Math.max(Math.abs(dkd_courier_lat - dkd_drop_lat) * 2.8, 0.025);
+                const dkd_lng_delta = Math.max(Math.abs(dkd_courier_lng - dkd_drop_lng) * 2.8, 0.025);
+                return { latitude: (dkd_courier_lat + dkd_drop_lat) / 2, longitude: (dkd_courier_lng + dkd_drop_lng) / 2, latitudeDelta: dkd_lat_delta, longitudeDelta: dkd_lng_delta };
+              }
+              if (dkd_has_courier) return { latitude: dkd_courier_lat, longitude: dkd_courier_lng, latitudeDelta: 0.035, longitudeDelta: 0.035 };
+              if (dkd_has_drop) return { latitude: dkd_drop_lat, longitude: dkd_drop_lng, latitudeDelta: 0.035, longitudeDelta: 0.035 };
+              return { latitude: 39.9334, longitude: 32.8597, latitudeDelta: 0.12, longitudeDelta: 0.12 };
+            }, [dkd_courier_lat, dkd_courier_lng, dkd_drop_lat, dkd_drop_lng, dkd_has_courier, dkd_has_drop]);
+
+            if (!courier) return null;
+
+            return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+              <View style={styles.backdrop}>
+                <LinearGradient colors={['#071321', '#0B1930', '#171637']} style={styles.sheet}>
+                  <View style={styles.handle} />
+                  <View style={styles.header}>
+                    <LinearGradient colors={['#08263B', '#113754']} style={styles.motorShell}><RacingMotorcycle color="#67ECFF" accentColor="#F5FAFF" size={58} /></LinearGradient>
+                    <View style={styles.headerCopy}><Text style={styles.kicker}>CANLI KURYE TAKİBİ</Text><Text style={styles.title}>{courier.dkd_display_name || 'Kurye'}</Text><Text style={styles.subtitle}>{courier.dkd_plate_no || 'Plaka yok'} • {courier.dkd_city || 'Bölge yok'}</Text></View>
+                    <View style={styles.onlineBadge}><View style={styles.liveDot} /><Text style={styles.onlineText}>CANLI</Text></View>
+                    <Pressable onPress={onClose} style={styles.closeButton}><MaterialCommunityIcons name="close" size={20} color="#EAF7FF" /></Pressable>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.mapWrap}>
+                      {(dkd_has_courier || dkd_has_drop) ? <MapView style={styles.map} region={dkd_region}>
+                        {dkd_has_courier && <Marker coordinate={{ latitude: dkd_courier_lat, longitude: dkd_courier_lng }} title={courier.dkd_display_name || 'Kurye'} description="Canlı kurye konumu" pinColor="#4F91FF" />}
+                        {dkd_has_drop && <Marker coordinate={{ latitude: dkd_drop_lat, longitude: dkd_drop_lng }} title="Teslimat Noktası" description={order?.dkd_dropoff || ''} pinColor="#FF627D" />}
+                      </MapView> : <View style={styles.noLocation}><MaterialCommunityIcons name="map-marker-off-outline" size={34} color="#6D819D" /><Text style={styles.noLocationTitle}>Konum henüz alınmadı</Text><Text style={styles.noLocationText}>Kurye yeni konum gönderdiğinde harita Realtime üzerinden otomatik güncellenir.</Text></View>}
+                      <View style={styles.mapLiveBadge}><View style={styles.liveDot} /><Text style={styles.mapLiveText}>CANLI TAKİP</Text></View>
+                    </View>
+
+                    <View style={styles.metricRow}>
+                      <LinearGradient colors={['rgba(89,232,255,.17)', 'rgba(75,119,255,.08)']} style={styles.metric}><MaterialCommunityIcons name="map-marker-radius-outline" size={21} color="#72E9FF" /><Text style={styles.metricLabel}>KONUM</Text><Text style={styles.metricValue}>{dkd_has_courier ? 'AKTİF' : 'BEKLENİYOR'}</Text></LinearGradient>
+                      <LinearGradient colors={['rgba(100,240,181,.16)', 'rgba(61,178,139,.07)']} style={styles.metric}><MaterialCommunityIcons name="clock-fast" size={21} color="#70F0B7" /><Text style={styles.metricLabel}>ETA</Text><Text style={styles.metricValue}>{order?.dkd_eta_min || 0} dk</Text></LinearGradient>
+                      <LinearGradient colors={['rgba(255,201,98,.16)', 'rgba(255,137,74,.07)']} style={styles.metric}><MaterialCommunityIcons name="map-marker-distance" size={21} color="#FFD16E" /><Text style={styles.metricLabel}>MESAFE</Text><Text style={styles.metricValue}>{Number(order?.dkd_distance_km || 0).toFixed(1)} km</Text></LinearGradient>
+                    </View>
+
+                    {!!dkd_location_updated_at && <View style={styles.updatedCard}><MaterialCommunityIcons name="update" size={19} color="#81E9FF" /><View style={styles.flexOne}><Text style={styles.updatedLabel}>SON KONUM GÜNCELLEMESİ</Text><Text style={styles.updatedValue}>{new Date(dkd_location_updated_at).toLocaleString('tr-TR')}</Text></View></View>}
+
+                    <View style={styles.sectionHead}><View style={styles.sectionIcon}><MaterialCommunityIcons name="package-variant-closed" size={22} color="#FFD170" /></View><View style={styles.flexOne}><Text style={styles.sectionTitle}>Üzerindeki Sipariş</Text><Text style={styles.sectionSub}>Kurye ataması ve teslimat ayrıntıları</Text></View></View>
+                    {order ? <LinearGradient colors={['rgba(80,111,255,.14)', 'rgba(162,82,255,.10)']} style={styles.orderCard}>
+                      <View style={styles.orderTop}><View style={styles.flexOne}><Text style={styles.orderRef}>#{order.dkd_order_ref || order.dkd_job_id}</Text><Text style={styles.orderTitle}>{order.dkd_title || 'Teslimat siparişi'}</Text></View><DkdStatusPill text={String(order.dkd_status || 'bekliyor').toUpperCase()} tone={dkd_status_tone(order.dkd_status)} /></View>
+                      <View style={styles.infoBlock}><Text style={styles.infoLabel}>TESLİMAT ADRESİ</Text><Text style={styles.infoValue}>{order.dkd_dropoff || 'Adres bilgisi bekleniyor'}</Text></View>
+                      <View style={styles.infoBlock}><Text style={styles.infoLabel}>ALIŞ NOKTASI</Text><Text style={styles.infoValue}>{order.dkd_pickup || 'Alış noktası belirtilmedi'}</Text></View>
+                      <View style={styles.orderMetaRow}><View style={styles.orderMeta}><Text style={styles.infoLabel}>TESLİMAT TUTARI</Text><Text style={styles.orderMetaValue}>{dkd_money(order.dkd_customer_charge_tl)}</Text></View><View style={styles.orderMeta}><Text style={styles.infoLabel}>KABUL</Text><Text style={styles.orderMetaValueSmall}>{order.dkd_accepted_at ? new Date(order.dkd_accepted_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}</Text></View></View>
+                    </LinearGradient> : <View style={styles.emptyOrder}><MaterialCommunityIcons name="package-variant-remove" size={30} color="#7186A4" /><Text style={styles.emptyOrderTitle}>Aktif sipariş yok</Text><Text style={styles.emptyOrderText}>Kurye çevrimiçi ancak şu anda üzerine atanmış aktif bir sipariş bulunmuyor.</Text></View>}
+                    <Text style={styles.liveNote}>Bu ekran `dkd_courier_live_locations` ve `dkd_courier_jobs` Realtime değişiklikleri geldikçe açıkken otomatik yenilenir.</Text>
+                  </ScrollView>
+                </LinearGradient>
+              </View>
+            </Modal>;
+          }
+
+          const styles = StyleSheet.create({
+            flexOne: { flex: 1 }, backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.72)' }, sheet: { maxHeight: '92%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 14, borderWidth: 1, borderColor: 'rgba(154,214,255,.18)' }, handle: { width: 46, height: 5, borderRadius: 8, backgroundColor: '#3B4B63', alignSelf: 'center', marginBottom: 12 }, header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }, motorShell: { width: 66, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }, headerCopy: { flex: 1, minWidth: 0 }, kicker: { color: '#89F0FF', fontSize: 12.5, fontWeight: '900', letterSpacing: 1 }, title: { color: '#FFFFFF', fontSize: 21, fontWeight: '900', marginTop: 1 }, subtitle: { color: '#A9BDD5', fontSize: 13.5, fontWeight: '700', marginTop: 2 }, onlineBadge: { minHeight: 31, paddingHorizontal: 9, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(83,237,176,.11)', borderWidth: 1, borderColor: 'rgba(83,237,176,.18)' }, liveDot: { width: 7, height: 7, borderRadius: 99, backgroundColor: '#60F0B6' }, onlineText: { color: '#8BF4CA', fontSize: 11.5, fontWeight: '900' }, closeButton: { width: 40, height: 40, borderRadius: 14, backgroundColor: 'rgba(255,255,255,.06)', alignItems: 'center', justifyContent: 'center' }, scrollContent: { paddingBottom: 28 }, mapWrap: { height: 280, borderRadius: 23, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(129,224,255,.18)', backgroundColor: '#0A1525' }, map: { flex: 1 }, mapLiveBadge: { position: 'absolute', top: 12, left: 12, minHeight: 31, paddingHorizontal: 10, borderRadius: 12, backgroundColor: 'rgba(5,18,31,.88)', flexDirection: 'row', alignItems: 'center', gap: 6 }, mapLiveText: { color: '#DDFBFF', fontSize: 11.5, fontWeight: '900' }, noLocation: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 }, noLocationTitle: { color: '#E4EFFB', fontSize: 16, fontWeight: '900', marginTop: 8 }, noLocationText: { color: '#8296B1', fontSize: 13, lineHeight: 18, fontWeight: '700', textAlign: 'center', marginTop: 5 }, metricRow: { flexDirection: 'row', gap: 8, marginTop: 11 }, metric: { flex: 1, minHeight: 92, borderRadius: 18, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,.07)' }, metricLabel: { color: '#9BAEC5', fontSize: 10.5, fontWeight: '900', letterSpacing: .45, marginTop: 7 }, metricValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', marginTop: 4 }, updatedCard: { minHeight: 60, borderRadius: 18, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: 'rgba(93,220,255,.07)', borderWidth: 1, borderColor: 'rgba(93,220,255,.11)' }, updatedLabel: { color: '#7F9AB7', fontSize: 10.5, fontWeight: '900', letterSpacing: .5 }, updatedValue: { color: '#D7E7F7', fontSize: 13.5, fontWeight: '800', marginTop: 2 }, sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, marginBottom: 9 }, sectionIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,205,104,.09)' }, sectionTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' }, sectionSub: { color: '#899EB8', fontSize: 12.5, fontWeight: '700', marginTop: 2 }, orderCard: { borderRadius: 22, padding: 13, borderWidth: 1, borderColor: 'rgba(151,175,255,.13)' }, orderTop: { flexDirection: 'row', alignItems: 'center', gap: 9 }, orderRef: { color: '#88EFFF', fontSize: 12.5, fontWeight: '900' }, orderTitle: { color: '#FFFFFF', fontSize: 17, lineHeight: 22, fontWeight: '900', marginTop: 2 }, infoBlock: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(176,214,255,.08)' }, infoLabel: { color: '#8398B4', fontSize: 10.5, fontWeight: '900', letterSpacing: .55 }, infoValue: { color: '#DDE9F6', fontSize: 14, lineHeight: 19, fontWeight: '700', marginTop: 4 }, orderMetaRow: { flexDirection: 'row', gap: 9, marginTop: 12 }, orderMeta: { flex: 1, minHeight: 61, borderRadius: 15, padding: 10, backgroundColor: 'rgba(255,255,255,.04)' }, orderMetaValue: { color: '#FFFFFF', fontSize: 16, fontWeight: '900', marginTop: 5 }, orderMetaValueSmall: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', marginTop: 5 }, emptyOrder: { minHeight: 150, borderRadius: 22, alignItems: 'center', justifyContent: 'center', padding: 22, backgroundColor: 'rgba(110,135,170,.05)', borderWidth: 1, borderColor: 'rgba(130,160,200,.09)' }, emptyOrderTitle: { color: '#DCE7F4', fontSize: 16, fontWeight: '900', marginTop: 7 }, emptyOrderText: { color: '#8194AD', fontSize: 13, lineHeight: 18, fontWeight: '700', textAlign: 'center', marginTop: 4 }, liveNote: { color: '#6F839D', fontSize: 12.5, lineHeight: 18, fontWeight: '700', marginTop: 13, textAlign: 'center' },
+          });
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          dashboard_path = Path('src/screens/DashboardScreenPro.js')
+          dashboard = dashboard_path.read_text()
+          import_marker = "import { dkd_gradients, dkd_theme } from '../lib/theme';\n"
+          if "CourierLiveDetailModal" not in dashboard:
+              dashboard = dashboard.replace(import_marker, "import CourierLiveDetailModal from '../components/CourierLiveDetailModal';\n" + import_marker, 1)
+
+          state_marker = "  const [dkd_error, dkd_set_error] = useState('');\n"
+          if "dkd_selected_courier_id" not in dashboard:
+              dashboard = dashboard.replace(state_marker, state_marker + "  const [dkd_selected_courier_id, dkd_set_selected_courier_id] = useState(null);\n", 1)
+
+          memo_marker = "  const dkd_online_couriers = useMemo(() => dkd_couriers.filter((dkd_item) => dkd_item.dkd_is_online).slice(0, 4), [dkd_couriers]);\n"
+          if "dkd_selected_courier =" not in dashboard:
+              memo_insert = memo_marker + "  const dkd_selected_courier = useMemo(() => dkd_couriers.find((dkd_item) => String(dkd_item.dkd_courier_user_id) === String(dkd_selected_courier_id || '')) || null, [dkd_couriers, dkd_selected_courier_id]);\n  const dkd_selected_order = useMemo(() => dkd_orders.find((dkd_order) => {\n    const dkd_status_value = String(dkd_order.dkd_status || '').toLowerCase();\n    const dkd_is_active_value = !['completed', 'delivered', 'cancelled', 'canceled'].includes(dkd_status_value);\n    return dkd_is_active_value && String(dkd_order.dkd_courier_user_id || '') === String(dkd_selected_courier_id || '');\n  }) || null, [dkd_orders, dkd_selected_courier_id]);\n"
+              if memo_marker not in dashboard: raise SystemExit('dashboard memo marker missing')
+              dashboard = dashboard.replace(memo_marker, memo_insert, 1)
+
+          old_row = "{dkd_online_couriers.map((dkd_courier, dkd_index) => <View key={dkd_courier.dkd_courier_user_id} style={[styles.operationCourierRow, dkd_index > 0 && styles.operationCourierBorder]}>"
+          new_row = "{dkd_online_couriers.map((dkd_courier, dkd_index) => <Pressable key={dkd_courier.dkd_courier_user_id} onPress={() => dkd_set_selected_courier_id(dkd_courier.dkd_courier_user_id)} style={({ pressed }) => [styles.operationCourierRow, dkd_index > 0 && styles.operationCourierBorder, pressed && styles.operationCourierPressed]}>"
+          if old_row in dashboard: dashboard = dashboard.replace(old_row, new_row, 1)
+          old_end = '<DkdStatusPill text="ONLINE" tone="green" />\n        </View>)}'
+          new_end = '<DkdStatusPill text="ONLINE" tone="green" /><MaterialCommunityIcons name="chevron-right" size={21} color="#84E9FF" />\n        </Pressable>)}'
+          if old_end in dashboard: dashboard = dashboard.replace(old_end, new_end, 1)
+
+          bottom_marker = "    <View style={styles.bottomSpacer} />\n"
+          modal_line = "    <CourierLiveDetailModal visible={Boolean(dkd_selected_courier_id)} courier={dkd_selected_courier} order={dkd_selected_order} onClose={() => dkd_set_selected_courier_id(null)} />\n"
+          if modal_line not in dashboard:
+              if bottom_marker not in dashboard: raise SystemExit('dashboard bottom marker missing')
+              dashboard = dashboard.replace(bottom_marker, modal_line + bottom_marker, 1)
+
+          style_marker = "operationCourierRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }, operationCourierBorder:"
+          style_new = "operationCourierRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }, operationCourierPressed: { opacity: .72, transform: [{ scale: .992 }] }, operationCourierBorder:"
+          if "operationCourierPressed" not in dashboard:
+              if style_marker not in dashboard: raise SystemExit('dashboard style marker missing')
+              dashboard = dashboard.replace(style_marker, style_new, 1)
+          dashboard_path.write_text(dashboard)
+
+          courier_path = Path('src/screens/CouriersScreenPro.js')
+          courier = courier_path.read_text()
+          courier = courier.replace('<Text style={styles.rateLabel}>GÜNLÜK PAKET</Text>', '<Text style={styles.rateLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>GÜNLÜK PAKET</Text>')
+          courier = courier.replace('<Text style={styles.rateLabel}>AYLIK PAKET</Text>', '<Text style={styles.rateLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>AYLIK PAKET</Text>')
+          courier = courier.replace('<Text style={styles.rateLabel}>BUGÜN</Text>', '<Text style={styles.rateLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.66}>BUGÜN KAZANÇ</Text>')
+          courier = courier.replace('<Text style={styles.rateValue}>{dkd_counts_value.dkd_daily_packages ?? Number(dkd_courier?.dkd_today?.dkd_completed_jobs || 0)}</Text>', '<Text style={styles.rateValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{dkd_counts_value.dkd_daily_packages ?? Number(dkd_courier?.dkd_today?.dkd_completed_jobs || 0)}</Text>')
+          courier = courier.replace('<Text style={styles.rateValue}>{dkd_counts_value.dkd_monthly_packages ?? 0}</Text>', '<Text style={styles.rateValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{dkd_counts_value.dkd_monthly_packages ?? 0}</Text>')
+          courier = courier.replace('<Text style={styles.rateValue}>{dkd_money(dkd_courier.dkd_today?.dkd_earnings_tl)}</Text>', '<Text style={styles.rateValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.68}>{dkd_money(dkd_courier.dkd_today?.dkd_earnings_tl)}</Text>')
+          courier = courier.replace("rateLabel: { color: '#B0BED0', fontSize: 12.5, fontWeight: '900', letterSpacing: .45, marginTop: 8 }, rateValue: { color: '#FFFFFF', fontSize: 17, lineHeight: 22, fontWeight: '900', marginTop: 4 },", "rateLabel: { color: '#B0BED0', fontSize: 11.2, fontWeight: '900', letterSpacing: .15, marginTop: 8 }, rateValue: { color: '#FFFFFF', fontSize: 16.2, lineHeight: 21, fontWeight: '900', marginTop: 4 },")
+          courier_path.write_text(courier)
+          PY
+      - name: Clean install
+        run: npm ci --ignore-scripts
+      - name: Expo Doctor
+        run: npx expo-doctor@latest
+      - name: Android Metro export
+        run: npx expo export --platform android --output-dir /tmp/dkd-panel-live-detail-export --clear
+      - name: Commit validated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/CourierLiveDetailModal.js src/screens/DashboardScreenPro.js src/screens/CouriersScreenPro.js
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add live courier map detail and single-line courier metrics"
+          git push origin HEAD:${{ github.head_ref }}
