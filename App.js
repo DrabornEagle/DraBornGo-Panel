@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AuthScreen from './src/screens/AuthScreen';
@@ -72,12 +73,16 @@ export default function App() {
     return () => dkd_listener?.subscription?.unsubscribe();
   }, []);
 
-  return <SafeAreaProvider><StatusBar style="light" /><SafeAreaView style={styles.safe} edges={['top']}>
-    {!dkd_supabase_ready ? <View style={styles.loading}><MaterialCommunityIcons name="database-alert-outline" size={38} color={dkd_theme.yellow} /><Text style={styles.errorTitle}>Supabase ayarı eksik</Text><Text style={styles.errorText}>.env dosyasına EXPO_PUBLIC_SUPABASE_URL ve EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ekle.</Text></View> : dkd_booting ? <View style={styles.loading}><ActivityIndicator size="large" color={dkd_theme.cyan} /></View> : dkd_session ? <DkdAuthenticatedApp session={dkd_session} /> : <AuthScreen />}
-  </SafeAreaView></SafeAreaProvider>;
+  return <SafeAreaProvider>
+    <StatusBar style="light" translucent backgroundColor="transparent" />
+    <NavigationBar style="dark" hidden={false} />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      {!dkd_supabase_ready ? <View style={styles.loading}><MaterialCommunityIcons name="database-alert-outline" size={38} color={dkd_theme.yellow} /><Text style={styles.errorTitle}>Supabase ayarı eksik</Text><Text style={styles.errorText}>DraBornGo ortak Supabase bağlantısı yüklenemedi. Güncel GitHub sürümüne eşitle.</Text></View> : dkd_booting ? <View style={styles.loading}><ActivityIndicator size="large" color={dkd_theme.cyan} /></View> : dkd_session ? <DkdAuthenticatedApp session={dkd_session} /> : <AuthScreen />}
+    </SafeAreaView>
+  </SafeAreaProvider>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: dkd_theme.background }, appRoot: { flex: 1, backgroundColor: dkd_theme.background }, loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: dkd_theme.background, padding: 28, gap: 10 }, loadingText: { color: dkd_theme.textSoft, fontSize: 10.5, fontWeight: '800' }, errorTitle: { color: dkd_theme.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }, errorText: { color: dkd_theme.textSoft, fontSize: 10, lineHeight: 16, fontWeight: '700', textAlign: 'center', maxWidth: 320 }, retry: { marginTop: 10, minHeight: 43, minWidth: 120, borderRadius: 14, backgroundColor: dkd_theme.cyan, alignItems: 'center', justifyContent: 'center' }, retryText: { color: '#07121D', fontSize: 10, fontWeight: '900' }, logoutMini: { minHeight: 38, minWidth: 110, alignItems: 'center', justifyContent: 'center' }, logoutMiniText: { color: '#FF9EAA', fontSize: 9.5, fontWeight: '900' },
-  navWrap: { position: 'absolute', left: 12, right: 12, bottom: 10 }, navBar: { minHeight: 69, borderRadius: 24, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(8,17,30,.97)', borderWidth: 1, borderColor: 'rgba(166,217,255,.14)' }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 }, navIcon: { width: 36, height: 34, borderRadius: 13, alignItems: 'center', justifyContent: 'center' }, navIconActive: { backgroundColor: dkd_theme.cyan }, navText: { color: '#6E8099', fontSize: 7.5, fontWeight: '900' }, navTextActive: { color: '#CFF8FF' },
+  safe: { flex: 1, backgroundColor: dkd_theme.background }, appRoot: { flex: 1, backgroundColor: dkd_theme.background }, loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: dkd_theme.background, padding: 28, gap: 10 }, loadingText: { color: dkd_theme.textSoft, fontSize: 13, fontWeight: '800' }, errorTitle: { color: dkd_theme.text, fontSize: 20, fontWeight: '900', textAlign: 'center' }, errorText: { color: dkd_theme.textSoft, fontSize: 13, lineHeight: 19, fontWeight: '700', textAlign: 'center', maxWidth: 340 }, retry: { marginTop: 10, minHeight: 46, minWidth: 132, borderRadius: 14, backgroundColor: dkd_theme.cyan, alignItems: 'center', justifyContent: 'center' }, retryText: { color: '#07121D', fontSize: 12, fontWeight: '900' }, logoutMini: { minHeight: 40, minWidth: 110, alignItems: 'center', justifyContent: 'center' }, logoutMiniText: { color: '#FF9EAA', fontSize: 11, fontWeight: '900' },
+  navWrap: { position: 'absolute', left: 12, right: 12, bottom: 10 }, navBar: { minHeight: 69, borderRadius: 24, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(8,17,30,.97)', borderWidth: 1, borderColor: 'rgba(166,217,255,.14)' }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 }, navIcon: { width: 36, height: 34, borderRadius: 13, alignItems: 'center', justifyContent: 'center' }, navIconActive: { backgroundColor: dkd_theme.cyan }, navText: { color: '#6E8099', fontSize: 9.5, fontWeight: '900' }, navTextActive: { color: '#CFF8FF' },
 });
