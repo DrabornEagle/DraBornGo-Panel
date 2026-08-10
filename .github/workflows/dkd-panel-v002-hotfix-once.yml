@@ -1,0 +1,68 @@
+name: DraBornGo Panel v0.0.2 UI hotfix once
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dkd-panel-v002-hotfix-once.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch panel UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          couriers = Path('src/screens/CouriersScreenV2.js')
+          text = couriers.read_text()
+          old = '''function DkdNumberField({ label, value, onChangeText, suffix = 'TL' }) {
+            return <View style={styles.numberField}><Text style={styles.numberLabel}>{label}</Text><View style={styles.numberShell}><TextInput value={String(value)} onChangeText={(dkd_value) => onChangeText(dkd_value.replace(',', '.').replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={styles.numberInput} /><Text style={styles.numberSuffix}>{suffix}</Text></View></View>;
+          }'''
+          new = '''function DkdNumberField({ label, value, onChangeText, suffix = 'TL', compact = false }) {
+            return <View style={[styles.numberField, compact && styles.numberFieldCompact]}><Text style={styles.numberLabel}>{label}</Text><View style={styles.numberShell}><TextInput value={String(value)} onChangeText={(dkd_value) => onChangeText(dkd_value.replace(',', '.').replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={styles.numberInput} /><Text style={styles.numberSuffix}>{suffix}</Text></View></View>;
+          }'''
+          if old not in text:
+              raise SystemExit('DkdNumberField source pattern not found')
+          text = text.replace(old, new)
+          text = text.replace('<DkdNumberField label="PAKET BAŞI"', '<DkdNumberField compact label="PAKET BAŞI"')
+          text = text.replace('<DkdNumberField label="SAATLİK"', '<DkdNumberField compact label="SAATLİK"')
+          old_style = "numberField:{flex:1,gap:5,marginBottom:9}"
+          new_style = "numberField:{width:'100%',gap:5,marginBottom:9},numberFieldCompact:{flex:1,width:'auto',minWidth:0}"
+          if old_style not in text:
+              raise SystemExit('numberField style pattern not found')
+          text = text.replace(old_style, new_style)
+          couriers.write_text(text)
+
+          components = Path('src/components/PanelComponents.js')
+          text = components.read_text()
+          old_return = "  const dkd_style = dkd_map[tone] || dkd_map.blue;\n  return <View style={[styles.pill, { backgroundColor: dkd_style.bg }]}><Text style={[styles.pillText, { color: dkd_style.fg }]}>{text}</Text></View>;"
+          new_return = "  const dkd_style = dkd_map[tone] || dkd_map.blue;\n  const dkd_status_key_value = String(text || '').trim().toUpperCase();\n  const dkd_status_label_value = ({ ACCEPTED: 'KABUL EDİLDİ', OPEN: 'BEKLİYOR', READY: 'HAZIR', PUBLISHED: 'YAYINDA', COMPLETED: 'TAMAMLANDI', DELIVERED: 'TESLİM EDİLDİ', CANCELLED: 'İPTAL', CANCELED: 'İPTAL' })[dkd_status_key_value] || text;\n  return <View style={[styles.pill, { backgroundColor: dkd_style.bg }]}><Text style={[styles.pillText, { color: dkd_style.fg }]}>{dkd_status_label_value}</Text></View>;"
+          if old_return not in text:
+              raise SystemExit('DkdStatusPill source pattern not found')
+          components.write_text(text.replace(old_return, new_return))
+
+          for file_name in ['App.js', 'src/screens/ReportsScreen.js']:
+              path = Path(file_name)
+              value = path.read_text().replace('calendar-chart', 'chart-box-outline')
+              path.write_text(value)
+
+          for path in Path('src').rglob('*.js'):
+              value = path.read_text()
+              value = re.sub(r"(['\"])ETA\1", lambda m: m.group(1) + 'VARIŞ' + m.group(1), value)
+              path.write_text(value)
+          PY
+      - name: Commit hotfix and remove one-shot workflow
+        run: |
+          rm -f .github/workflows/dkd-panel-v002-hotfix-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: panel v0.0.2 mesai layout and Turkish statuses'
+          git push
