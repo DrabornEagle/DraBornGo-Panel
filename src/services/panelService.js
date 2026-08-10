@@ -15,150 +15,111 @@ function dkd_error_message(dkd_error_value, dkd_fallback_value = 'İşlem tamaml
     ['dkd_search_min_3_chars', 'Arama için en az 3 karakter yaz.'],
     ['dkd_membership_not_found', 'Kurye bağlantısı bulunamadı.'],
     ['dkd_rate_invalid', 'Ücret değerleri 0 veya daha büyük olmalı.'],
+    ['dkd_max_online_hours_invalid', 'Azami çevrimiçi süre 1 ile 24 saat arasında olmalı.'],
+    ['dkd_delivery_address_required', 'Teslimat adresi zorunlu.'],
+    ['dkd_order_amount_invalid', 'Sipariş tutarı negatif olamaz.'],
+    ['max_online_hours_reached', 'Kurye bugünkü azami çevrimiçi süresine ulaştı.'],
   ];
   const dkd_match_value = dkd_map_value.find(([dkd_key_value]) => dkd_text_value.includes(dkd_key_value));
   return dkd_match_value?.[1] || dkd_text_value || dkd_fallback_value;
 }
 
+function dkd_throw_rpc_error(dkd_error_value) {
+  if (dkd_error_value) throw new Error(dkd_error_message(dkd_error_value));
+}
+
 export async function dkd_panel_sign_in(dkd_email_value, dkd_password_value) {
   const { data, error } = await supabase.auth.signInWithPassword({ email: dkd_email_value.trim(), password: dkd_password_value });
-  if (error) throw new Error(dkd_error_message(error));
+  dkd_throw_rpc_error(error);
   return data;
 }
 
 export async function dkd_panel_sign_up(dkd_form_value) {
   const dkd_metadata_value = {
-    source_app: 'draborngo_panel',
-    signup_role: 'business_owner',
+    source_app: 'draborngo_panel', signup_role: 'business_owner',
     dkd_panel_business_name: dkd_form_value.businessName.trim(),
     dkd_panel_owner_full_name: dkd_form_value.ownerFullName.trim(),
     dkd_panel_phone: dkd_form_value.phone.trim(),
     dkd_panel_business_type: dkd_form_value.businessType.trim() || 'İşletme',
-    dkd_panel_city: dkd_form_value.city.trim(),
-    dkd_panel_district: dkd_form_value.district.trim(),
+    dkd_panel_city: dkd_form_value.city.trim(), dkd_panel_district: dkd_form_value.district.trim(),
     dkd_panel_address_text: dkd_form_value.address.trim(),
   };
-  const { data, error } = await supabase.auth.signUp({
-    email: dkd_form_value.email.trim(),
-    password: dkd_form_value.password,
-    options: { data: dkd_metadata_value },
-  });
-  if (error) throw new Error(dkd_error_message(error));
+  const { data, error } = await supabase.auth.signUp({ email: dkd_form_value.email.trim(), password: dkd_form_value.password, options: { data: dkd_metadata_value } });
+  dkd_throw_rpc_error(error);
   if (data?.session) await dkd_panel_ensure_business_profile(data.user);
   return data;
 }
 
-export async function dkd_panel_sign_out() {
-  await supabase.auth.signOut();
-}
+export async function dkd_panel_sign_out() { await supabase.auth.signOut(); }
 
 export async function dkd_panel_ensure_business_profile(dkd_user_value) {
   if (!dkd_user_value) return null;
   const dkd_existing_value = await supabase.rpc('dkd_business_profile_dkd');
   if (!dkd_existing_value.error && dkd_existing_value.data?.dkd_ok_value) return dkd_existing_value.data;
   const dkd_meta_value = dkd_user_value.user_metadata || {};
-  const dkd_business_name_value = dkd_meta_value.dkd_panel_business_name;
-  if (!dkd_business_name_value) return null;
+  if (!dkd_meta_value.dkd_panel_business_name) return null;
   const { data, error } = await supabase.rpc('dkd_business_register_dkd', {
-    dkd_param_business_name: dkd_business_name_value,
-    dkd_param_owner_full_name: dkd_meta_value.dkd_panel_owner_full_name || '',
-    dkd_param_phone: dkd_meta_value.dkd_panel_phone || '',
-    dkd_param_business_type: dkd_meta_value.dkd_panel_business_type || 'İşletme',
-    dkd_param_city: dkd_meta_value.dkd_panel_city || '',
-    dkd_param_district: dkd_meta_value.dkd_panel_district || '',
-    dkd_param_address_text: dkd_meta_value.dkd_panel_address_text || '',
+    dkd_param_business_name: dkd_meta_value.dkd_panel_business_name,
+    dkd_param_owner_full_name: dkd_meta_value.dkd_panel_owner_full_name || '', dkd_param_phone: dkd_meta_value.dkd_panel_phone || '',
+    dkd_param_business_type: dkd_meta_value.dkd_panel_business_type || 'İşletme', dkd_param_city: dkd_meta_value.dkd_panel_city || '',
+    dkd_param_district: dkd_meta_value.dkd_panel_district || '', dkd_param_address_text: dkd_meta_value.dkd_panel_address_text || '',
   });
-  if (error) throw new Error(dkd_error_message(error));
-  return data;
+  dkd_throw_rpc_error(error); return data;
 }
 
-export async function dkd_panel_fetch_business_profile() {
-  const { data, error } = await supabase.rpc('dkd_business_profile_dkd');
-  if (error) throw new Error(dkd_error_message(error));
-  return data;
-}
-
+export async function dkd_panel_fetch_business_profile() { const { data, error } = await supabase.rpc('dkd_business_profile_dkd'); dkd_throw_rpc_error(error); return data; }
 export async function dkd_panel_update_business_profile(dkd_form_value) {
   const { data, error } = await supabase.rpc('dkd_business_register_dkd', {
-    dkd_param_business_name: dkd_form_value.businessName,
-    dkd_param_owner_full_name: dkd_form_value.ownerFullName,
-    dkd_param_phone: dkd_form_value.phone,
-    dkd_param_business_type: dkd_form_value.businessType,
-    dkd_param_city: dkd_form_value.city,
-    dkd_param_district: dkd_form_value.district,
-    dkd_param_address_text: dkd_form_value.address,
+    dkd_param_business_name: dkd_form_value.businessName, dkd_param_owner_full_name: dkd_form_value.ownerFullName,
+    dkd_param_phone: dkd_form_value.phone, dkd_param_business_type: dkd_form_value.businessType,
+    dkd_param_city: dkd_form_value.city, dkd_param_district: dkd_form_value.district, dkd_param_address_text: dkd_form_value.address,
   });
-  if (error) throw new Error(dkd_error_message(error));
-  return data;
+  dkd_throw_rpc_error(error); return data;
 }
-
-export async function dkd_panel_fetch_dashboard() {
-  const { data, error } = await supabase.rpc('dkd_business_dashboard_dkd');
-  if (error) throw new Error(dkd_error_message(error));
-  return data || {};
-}
-
-export async function dkd_panel_fetch_orders(dkd_limit_value = 100) {
-  const { data, error } = await supabase.rpc('dkd_business_orders_dkd', { dkd_param_limit: dkd_limit_value });
-  if (error) throw new Error(dkd_error_message(error));
-  return data?.dkd_orders || [];
-}
-
-export async function dkd_panel_fetch_couriers() {
-  const { data, error } = await supabase.rpc('dkd_business_couriers_dkd');
-  if (error) throw new Error(dkd_error_message(error));
-  return data?.dkd_couriers || [];
-}
-
-export async function dkd_panel_search_couriers(dkd_query_value) {
-  const { data, error } = await supabase.rpc('dkd_business_courier_search_dkd', { dkd_param_query: dkd_query_value });
-  if (error) throw new Error(dkd_error_message(error));
-  return data || [];
-}
+export async function dkd_panel_fetch_dashboard() { const { data, error } = await supabase.rpc('dkd_business_dashboard_dkd'); dkd_throw_rpc_error(error); return data || {}; }
+export async function dkd_panel_fetch_orders(dkd_limit_value = 100) { const { data, error } = await supabase.rpc('dkd_business_orders_dkd', { dkd_param_limit: dkd_limit_value }); dkd_throw_rpc_error(error); return data?.dkd_orders || []; }
+export async function dkd_panel_fetch_couriers() { const { data, error } = await supabase.rpc('dkd_business_couriers_dkd'); dkd_throw_rpc_error(error); return data?.dkd_couriers || []; }
+export async function dkd_panel_search_couriers(dkd_query_value) { const { data, error } = await supabase.rpc('dkd_business_courier_search_dkd', { dkd_param_query: dkd_query_value }); dkd_throw_rpc_error(error); return data || []; }
 
 export async function dkd_panel_link_courier(dkd_user_id_value, dkd_package_fee_value, dkd_hourly_rate_value) {
-  const { data, error } = await supabase.rpc('dkd_business_courier_link_dkd', {
-    dkd_param_courier_user_id: dkd_user_id_value,
-    dkd_param_package_fee_tl: Number(dkd_package_fee_value || 0),
-    dkd_param_hourly_rate_tl: Number(dkd_hourly_rate_value || 0),
-  });
-  if (error) throw new Error(dkd_error_message(error));
-  return data;
+  const { data, error } = await supabase.rpc('dkd_business_courier_link_dkd', { dkd_param_courier_user_id: dkd_user_id_value, dkd_param_package_fee_tl: Number(dkd_package_fee_value || 0), dkd_param_hourly_rate_tl: Number(dkd_hourly_rate_value || 0) });
+  dkd_throw_rpc_error(error); return data;
 }
-
 export async function dkd_panel_set_courier_rate(dkd_user_id_value, dkd_package_fee_value, dkd_hourly_rate_value) {
-  const { data, error } = await supabase.rpc('dkd_business_courier_rate_set_dkd', {
-    dkd_param_courier_user_id: dkd_user_id_value,
-    dkd_param_package_fee_tl: Number(dkd_package_fee_value || 0),
-    dkd_param_hourly_rate_tl: Number(dkd_hourly_rate_value || 0),
+  const { data, error } = await supabase.rpc('dkd_business_courier_rate_set_dkd', { dkd_param_courier_user_id: dkd_user_id_value, dkd_param_package_fee_tl: Number(dkd_package_fee_value || 0), dkd_param_hourly_rate_tl: Number(dkd_hourly_rate_value || 0) });
+  dkd_throw_rpc_error(error); return data;
+}
+export async function dkd_panel_set_courier_max_hours(dkd_user_id_value, dkd_hours_value) {
+  const { data, error } = await supabase.rpc('dkd_business_courier_max_hours_set_dkd', { dkd_param_courier_user_id: dkd_user_id_value, dkd_param_max_online_hours: Number(dkd_hours_value || 0) });
+  dkd_throw_rpc_error(error); return data || {};
+}
+export async function dkd_panel_set_courier_online(dkd_user_id_value, dkd_online_value) {
+  const { data, error } = await supabase.rpc('dkd_business_courier_online_set_dkd', { dkd_param_courier_user_id: dkd_user_id_value, dkd_param_online: dkd_online_value === true });
+  dkd_throw_rpc_error(error);
+  if (data?.dkd_ok_value === false) throw new Error(dkd_error_message(data?.dkd_reason_value || 'Kurye durumu değiştirilemedi.'));
+  return data || {};
+}
+export async function dkd_panel_force_courier_offline(dkd_user_id_value) { return dkd_panel_set_courier_online(dkd_user_id_value, false); }
+export async function dkd_panel_unlink_courier(dkd_user_id_value) { const { data, error } = await supabase.rpc('dkd_business_courier_unlink_dkd', { dkd_param_courier_user_id: dkd_user_id_value }); dkd_throw_rpc_error(error); return data; }
+export async function dkd_panel_fetch_courier_earnings(dkd_user_id_value) { const { data, error } = await supabase.rpc('dkd_courier_earnings_summary_dkd', { dkd_param_user_id: dkd_user_id_value }); dkd_throw_rpc_error(error); return data || {}; }
+export async function dkd_panel_fetch_courier_report(dkd_user_id_value, dkd_day_value) { const { data, error } = await supabase.rpc('dkd_business_courier_report_dkd', { dkd_param_courier_user_id: dkd_user_id_value, dkd_param_day: dkd_day_value }); dkd_throw_rpc_error(error); return data || {}; }
+export async function dkd_panel_fetch_day_report(dkd_day_value) { const { data, error } = await supabase.rpc('dkd_business_day_report_dkd', { dkd_param_day: dkd_day_value }); dkd_throw_rpc_error(error); return data || {}; }
+export async function dkd_panel_create_order(dkd_form_value) {
+  const { data, error } = await supabase.rpc('dkd_business_order_create_dkd', {
+    dkd_param_order_ref: String(dkd_form_value.orderRef || '').trim(), dkd_param_title: String(dkd_form_value.title || 'Sipariş').trim(),
+    dkd_param_customer_name: String(dkd_form_value.customerName || '').trim(), dkd_param_customer_phone: String(dkd_form_value.customerPhone || '').trim(),
+    dkd_param_delivery_address: String(dkd_form_value.deliveryAddress || '').trim(), dkd_param_delivery_note: String(dkd_form_value.deliveryNote || '').trim(),
+    dkd_param_customer_charge_tl: Number(String(dkd_form_value.amount || '0').replace(',', '.')) || 0,
+    dkd_param_dropoff_lat: dkd_form_value.dropoffLat == null ? null : Number(dkd_form_value.dropoffLat), dkd_param_dropoff_lng: dkd_form_value.dropoffLng == null ? null : Number(dkd_form_value.dropoffLng),
   });
-  if (error) throw new Error(dkd_error_message(error));
-  return data;
-}
-
-export async function dkd_panel_force_courier_offline(dkd_user_id_value) {
-  const { data, error } = await supabase.rpc('dkd_business_courier_force_offline_dkd', { dkd_param_courier_user_id: dkd_user_id_value });
-  if (error) throw new Error(dkd_error_message(error));
-  return data || {};
-}
-
-export async function dkd_panel_unlink_courier(dkd_user_id_value) {
-  const { data, error } = await supabase.rpc('dkd_business_courier_unlink_dkd', { dkd_param_courier_user_id: dkd_user_id_value });
-  if (error) throw new Error(dkd_error_message(error));
-  return data;
-}
-
-export async function dkd_panel_fetch_courier_earnings(dkd_user_id_value) {
-  const { data, error } = await supabase.rpc('dkd_courier_earnings_summary_dkd', { dkd_param_user_id: dkd_user_id_value });
-  if (error) throw new Error(dkd_error_message(error));
-  return data || {};
+  dkd_throw_rpc_error(error); return data || {};
 }
 
 export function dkd_panel_subscribe_live(dkd_callback_value) {
-  const dkd_channel_value = supabase
-    .channel(`dkd-panel-live-${Date.now()}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'dkd_courier_jobs' }, dkd_callback_value)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'dkd_courier_live_locations' }, dkd_callback_value)
-    .subscribe();
+  let dkd_channel_value = supabase.channel(`dkd-panel-live-${Date.now()}`);
+  ['dkd_courier_jobs', 'dkd_courier_live_locations', 'dkd_business_couriers', 'dkd_courier_online_sessions'].forEach((dkd_table_value) => {
+    dkd_channel_value = dkd_channel_value.on('postgres_changes', { event: '*', schema: 'public', table: dkd_table_value }, dkd_callback_value);
+  });
+  dkd_channel_value.subscribe();
   return () => supabase.removeChannel(dkd_channel_value);
 }
