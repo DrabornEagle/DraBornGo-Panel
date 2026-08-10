@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "DraBornGo Panel",
+    "slug": "draborngo-panel",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.draborneagle.draborngopanel",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#07111F"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.draborneagle.draborngopanel",
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
