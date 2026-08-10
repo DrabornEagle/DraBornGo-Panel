@@ -1,0 +1,24 @@
+name: DraBornGo Panel v0.0.2 validation
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'app.json'
+      - 'App.js'
+      - 'src/**'
+      - '.github/workflows/dkd-v0-0-2-ci.yml'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx expo-doctor@latest
+      - run: npx expo export --platform android --output-dir dist-ci
