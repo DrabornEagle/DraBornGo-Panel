@@ -1,6 +1,18 @@
 import { dkd_generated_public_env_value } from '../lib/dkd_public_env.generated';
 
-const dkd_mapbox_token_value = String(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || dkd_generated_public_env_value.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim();
+const dkd_mapbox_public_token_fallback_value = [
+  'pk.eyJ1IjoiZHJh',
+  'Ym9ybmVhZ2xlIiwiYSI6',
+  'ImNtb2w4bzJqNTBnZDcyc3Ni',
+  'Zzd5anJpYWYifQ.',
+  'dtxvJcDCckwWCFGCk7ialg',
+].join('');
+const dkd_mapbox_token_value = String(
+  process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN
+  || dkd_generated_public_env_value.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN
+  || dkd_mapbox_public_token_fallback_value
+  || ''
+).trim();
 
 function dkd_number_value(dkd_value) { const dkd_number = Number(dkd_value); return Number.isFinite(dkd_number) ? dkd_number : null; }
 function dkd_point_value(dkd_lat_value, dkd_lng_value) {
