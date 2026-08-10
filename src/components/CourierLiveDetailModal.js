@@ -75,7 +75,7 @@ export default function CourierLiveDetailModal({ visible, courier, order, onClos
 
           <View style={styles.metricRow}>
             <LinearGradient colors={['rgba(89,232,255,.17)', 'rgba(75,119,255,.08)']} style={styles.metric}><MaterialCommunityIcons name="map-marker-radius-outline" size={21} color="#72E9FF" /><Text style={styles.metricLabel}>KONUM</Text><Text style={styles.metricValue}>{dkd_has_courier ? 'AKTİF' : 'BEKLENİYOR'}</Text></LinearGradient>
-            <LinearGradient colors={['rgba(100,240,181,.16)', 'rgba(61,178,139,.07)']} style={styles.metric}><MaterialCommunityIcons name="clock-fast" size={21} color="#70F0B7" /><Text style={styles.metricLabel}>ETA</Text><Text style={styles.metricValue}>{order?.dkd_eta_min || 0} dk</Text></LinearGradient>
+            <LinearGradient colors={['rgba(100,240,181,.16)', 'rgba(61,178,139,.07)']} style={styles.metric}><MaterialCommunityIcons name="clock-fast" size={21} color="#70F0B7" /><Text style={styles.metricLabel}>VARIŞ</Text><Text style={styles.metricValue}>{order?.dkd_eta_min || 0} dk</Text></LinearGradient>
             <LinearGradient colors={['rgba(255,201,98,.16)', 'rgba(255,137,74,.07)']} style={styles.metric}><MaterialCommunityIcons name="map-marker-distance" size={21} color="#FFD16E" /><Text style={styles.metricLabel}>MESAFE</Text><Text style={styles.metricValue}>{Number(order?.dkd_distance_km || 0).toFixed(1)} km</Text></LinearGradient>
           </View>
 

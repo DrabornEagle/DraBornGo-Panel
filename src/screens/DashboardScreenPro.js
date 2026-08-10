@@ -15,7 +15,7 @@ function DkdDashboardHero({ businessName, onRefresh, refreshing }) {
     <View style={styles.heroGlowOne} /><View style={styles.heroGlowTwo} />
     <View style={styles.heroTop}>
       <LinearGradient colors={['#6CEAFF', '#6FF0B6']} style={styles.heroIcon}><MaterialCommunityIcons name="storefront-outline" size={28} color="#07131D" /></LinearGradient>
-      <View style={styles.heroCopy}><Text style={styles.heroKicker}>DRABORNGO PANEL • v0.0.1</Text><Text style={styles.heroTitle} numberOfLines={1}>{businessName || 'İşletme Paneli'}</Text><Text style={styles.heroSub}>Kazanç, sipariş ve kurye operasyonunu tek merkezden yönet.</Text></View>
+      <View style={styles.heroCopy}><Text style={styles.heroKicker}>DRABORNGO PANEL • v0.0.2</Text><Text style={styles.heroTitle} numberOfLines={1}>{businessName || 'İşletme Paneli'}</Text><Text style={styles.heroSub}>Kazanç, sipariş ve kurye operasyonunu tek merkezden yönet.</Text></View>
       <Pressable onPress={onRefresh} disabled={refreshing} style={styles.refreshButton}><MaterialCommunityIcons name={refreshing ? 'progress-clock' : 'refresh'} size={22} color="#E8F7FF" /></Pressable>
     </View>
     <View style={styles.heroBadges}>
