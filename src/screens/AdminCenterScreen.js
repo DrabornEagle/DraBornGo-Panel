@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AdminCourierDetailScreen from './AdminCourierDetailScreen';
 import {
   dkd_admin_fetch_dashboard,
   dkd_admin_search_businesses,
@@ -76,6 +77,7 @@ export default function AdminCenterScreen() {
   const [dkd_mode,dkd_set_mode] = useState('businesses');
   const [dkd_business_query,dkd_set_business_query] = useState('');
   const [dkd_businesses,dkd_set_businesses] = useState([]);
+  const [dkd_business_limit,dkd_set_business_limit] = useState(5);
   const [dkd_business_detail,dkd_set_business_detail] = useState(null);
   const [dkd_courier_query,dkd_set_courier_query] = useState('');
   const [dkd_couriers,dkd_set_couriers] = useState([]);
@@ -119,6 +121,7 @@ export default function AdminCenterScreen() {
   useEffect(()=>{ dkd_load_dashboard(); dkd_search_business(''); dkd_search_courier(''); },[]);
   useEffect(()=>{ const dkd_timer=setTimeout(()=>dkd_search_business(),260); return()=>clearTimeout(dkd_timer); },[dkd_business_query]);
   useEffect(()=>{ const dkd_timer=setTimeout(()=>dkd_search_courier(),260); return()=>clearTimeout(dkd_timer); },[dkd_courier_query]);
+  useEffect(()=>{dkd_set_business_limit(5);},[dkd_business_query]);
   useEffect(()=>{dkd_set_courier_limit(5);},[dkd_courier_query]);
   useEffect(()=>{dkd_set_business_courier_limit(5);},[dkd_business_courier_query]);
 
@@ -162,7 +165,10 @@ export default function AdminCenterScreen() {
   const dkd_pending = dkd_dashboard?.dkd_pending_payments || [];
   const dkd_business_courier_values=(dkd_business_detail?.dkd_couriers || []).filter((dkd_courier)=>{const dkd_query_value=dkd_business_courier_query.trim().toLocaleLowerCase('tr-TR');if(!dkd_query_value)return true;return [dkd_courier.dkd_display_name,dkd_courier.dkd_dbg_id,dkd_courier.dkd_email].some((dkd_value)=>String(dkd_value || '').toLocaleLowerCase('tr-TR').includes(dkd_query_value));});
   const dkd_visible_business_couriers=dkd_business_courier_values.slice(0,dkd_business_courier_limit);
+  const dkd_visible_businesses=(dkd_businesses || []).slice(0,dkd_business_limit);
   const dkd_visible_network_couriers=(dkd_couriers || []).slice(0,dkd_courier_limit);
+
+  if(dkd_courier_detail)return <AdminCourierDetailScreen detail={dkd_courier_detail} onBack={()=>dkd_set_courier_detail(null)}/>;
 
   return <View style={styles.root}>
     <DkdGlowOrb style={styles.orbOne} colors={['rgba(94,235,255,.35)','rgba(111,135,255,.03)']}/><DkdGlowOrb style={styles.orbTwo} colors={['rgba(166,107,255,.28)','rgba(255,118,183,.02)']}/>
@@ -196,7 +202,7 @@ export default function AdminCenterScreen() {
       {dkd_mode==='businesses' && <>
         <DkdSectionHead eyebrow="İŞLETME AĞI" title="İşletme Bul" subtitle="Ad, işletme sahibi, e-posta veya telefon ile hızlı arama."/>
         <View style={styles.searchWrap}><MaterialCommunityIcons name="magnify" size={22} color={dkd_palette.cyan}/><TextInput value={dkd_business_query} onChangeText={dkd_set_business_query} placeholder="İşletme veya işletme sahibi ara" placeholderTextColor="#596987" style={styles.searchInput}/></View>
-        {(dkd_businesses || []).map((dkd_business)=><Pressable key={dkd_business.dkd_business_id} onPress={()=>dkd_open_business(dkd_business.dkd_business_id)} style={({pressed})=>[styles.resultPress,pressed&&{opacity:.82}]}><LinearGradient colors={['#0D1732','#111A34']} style={styles.resultCard}><View style={styles.resultIconWrap}><LinearGradient colors={['#5EEBFF','#6D8DFF']} style={styles.resultIcon}><MaterialCommunityIcons name="storefront" size={21} color="#07111F"/></LinearGradient></View><View style={styles.resultMain}><Text style={styles.resultTitle}>{dkd_business.dkd_business_name}</Text><Text style={styles.resultMeta}>{dkd_business.dkd_owner_full_name || 'İşletme sahibi'} • {dkd_business.dkd_courier_count || 0} kurye</Text><View style={styles.locationRow}><MaterialCommunityIcons name="map-marker" size={13} color={dkd_palette.soft}/><Text style={styles.resultMeta}>{dkd_business.dkd_city || ''} {dkd_business.dkd_district || ''}</Text></View></View><View style={styles.resultRight}><Text style={styles.resultMoney}>{dkd_money(dkd_business.dkd_platform_fee_total_tl)}</Text><MaterialCommunityIcons name="chevron-right" size={20} color="#60708E"/></View></LinearGradient></Pressable>)}
+        {dkd_visible_businesses.map((dkd_business)=><Pressable key={dkd_business.dkd_business_id} onPress={()=>dkd_open_business(dkd_business.dkd_business_id)} style={({pressed})=>[styles.resultPress,pressed&&{opacity:.82}]}><LinearGradient colors={['#0D1732','#111A34']} style={styles.resultCard}><View style={styles.resultIconWrap}><LinearGradient colors={['#5EEBFF','#6D8DFF']} style={styles.resultIcon}><MaterialCommunityIcons name="storefront" size={21} color="#07111F"/></LinearGradient></View><View style={styles.resultMain}><Text style={styles.resultTitle}>{dkd_business.dkd_business_name}</Text><Text style={styles.resultMeta}>{dkd_business.dkd_owner_full_name || 'İşletme sahibi'} • {dkd_business.dkd_courier_count || 0} kurye</Text><View style={styles.locationRow}><MaterialCommunityIcons name="map-marker" size={13} color={dkd_palette.soft}/><Text style={styles.resultMeta}>{dkd_business.dkd_city || ''} {dkd_business.dkd_district || ''}</Text></View></View><View style={styles.resultRight}><Text style={styles.resultMoney}>{dkd_money(dkd_business.dkd_platform_fee_total_tl)}</Text><MaterialCommunityIcons name="chevron-right" size={20} color="#60708E"/></View></LinearGradient></Pressable>)}        {(dkd_businesses || []).length>dkd_business_limit&&<Pressable onPress={()=>dkd_set_business_limit((dkd_value)=>dkd_value+5)} style={styles.moreButton}><MaterialCommunityIcons name="chevron-double-down" size={19} color="#07111F"/><Text style={styles.moreButtonText}>DAHA FAZLA • 5 İŞLETME</Text></Pressable>}
 
         {dkd_business_detail && <LinearGradient colors={['#101C3A','#16152F','#19132C']} style={styles.detailPanel}>
           <View style={styles.detailTitleRow}><View style={{flex:1}}><Text style={styles.detailEyebrow}>İŞLETME DETAYI</Text><Text style={styles.detailTitle}>{dkd_business_detail?.dkd_business?.dkd_business_name || 'İşletme'}</Text><Text style={styles.detailSub}>{dkd_business_detail?.dkd_business?.dkd_owner_full_name || ''} • {dkd_business_detail?.dkd_courier_count || 0} aktif kurye</Text></View><View style={styles.detailBadge}><MaterialCommunityIcons name="store-check" size={24} color={dkd_palette.mint}/></View></View>
