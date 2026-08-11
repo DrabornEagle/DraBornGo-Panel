@@ -1,0 +1,30 @@
+name: DraBornGo Panel temporary deep audit
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Validate MaterialCommunityIcons literals
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('fs'); const path=require('path');
+          const glyph=require('@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json');
+          const roots=['src','App.js'].filter(fs.existsSync); const invalid=[];
+          function scan(p){const s=fs.statSync(p); if(s.isDirectory()){for(const n of fs.readdirSync(p)) scan(path.join(p,n)); return;} if(!/\.(js|jsx|ts|tsx)$/.test(p)) return; const t=fs.readFileSync(p,'utf8'); const r=/<MaterialCommunityIcons\b[^>]*\bname=["']([^"']+)["']/g; let m; while((m=r.exec(t))) if(!Object.prototype.hasOwnProperty.call(glyph,m[1])) invalid.push(`${p}: ${m[1]}`);}
+          for(const p of roots) scan(p); if(invalid.length){console.error('INVALID MATERIAL COMMUNITY ICONS\n'+invalid.join('\n')); process.exit(1);} console.log('MaterialCommunityIcons literal audit: OK');
+          NODE
+      - name: Validate Android Metro export only
+        run: npx expo export --platform android --output-dir dist-deep-audit
