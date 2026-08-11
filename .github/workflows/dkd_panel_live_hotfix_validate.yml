@@ -1,0 +1,24 @@
+name: DraBornGo Panel live tracking hotfix validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/dkd_panel_live_hotfix_trigger/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Validate Android Metro export only
+        run: npx expo export --platform android --output-dir dist-live-hotfix
