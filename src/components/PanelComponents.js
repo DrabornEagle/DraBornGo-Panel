@@ -37,7 +37,7 @@ export function DkdHero({ businessName, subtitle, onRefresh, refreshing }) {
       <View style={styles.heroTop}>
         <View style={styles.brandIcon}><MaterialCommunityIcons name="storefront-outline" size={27} color="#06131F" /></View>
         <View style={styles.heroCopy}>
-          <Text style={styles.kicker}>DRABORNGO PANEL • v0.0.2</Text>
+          <Text style={styles.kicker}>DRABORNGO PANEL • v0.0.3</Text>
           <Text style={styles.heroTitle} numberOfLines={1}>{businessName || 'İşletme Paneli'}</Text>
           <Text style={styles.heroSubtitle} numberOfLines={2}>{subtitle}</Text>
         </View>

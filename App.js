@@ -142,7 +142,7 @@ function DkdAuthenticatedApp({ session }) {
   if (dkd_is_admin) return <AdminCenterScreen />;
 
   return <View style={styles.appRoot}>
-    {dkd_tab === 'dashboard' && <DashboardScreen business={dkd_business} refreshSignal={dkd_refresh_signal} />}
+    {dkd_tab === 'dashboard' && <DashboardScreen business={dkd_business} refreshSignal={dkd_refresh_signal} onOpenSettings={() => dkd_set_tab('settings')} />}
     {dkd_tab === 'orders' && <OrdersScreen refreshSignal={dkd_refresh_signal} />}
     {dkd_tab === 'couriers' && <CouriersScreen refreshSignal={dkd_refresh_signal} />}
     {dkd_tab === 'reports' && <ReportsScreen refreshSignal={dkd_refresh_signal} />}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -129,11 +129,25 @@ export default function AdminCenterScreen() {
     finally { dkd_set_busy(false); }
   };
   const dkd_save_fee = async()=>{
-    const dkd_business_id_value=dkd_business_detail?.dkd_business?.dkd_id; if(!dkd_business_id_value)return;
-    dkd_set_busy(true); try { await dkd_admin_set_platform_agreement(dkd_business_id_value,dkd_fee_mode,Number(String(dkd_fee_value).replace(',','.')) || 0); await dkd_open_business(dkd_business_id_value); await dkd_load_dashboard(); }
-    catch(dkd_error_value){ dkd_set_error(String(dkd_error_value.message || dkd_error_value)); dkd_set_busy(false); }
+    const dkd_business_id_value=dkd_business_detail?.dkd_business?.dkd_id;
+    if(!dkd_business_id_value){ Alert.alert('İşletme seçilmedi','Önce anlaşma tanımlanacak işletmeyi aç.'); return; }
+    const dkd_numeric_value=Number(String(dkd_fee_value).replace(',','.'));
+    if(!Number.isFinite(dkd_numeric_value) || dkd_numeric_value<0){ Alert.alert('Geçersiz bedel','Platform Hizmet Bedeli için geçerli bir değer gir.'); return; }
+    dkd_set_busy(true); dkd_set_error('');
+    try {
+      await dkd_admin_set_platform_agreement(dkd_business_id_value,dkd_fee_mode,dkd_numeric_value);
+      const dkd_next_detail_value=await dkd_admin_fetch_business_detail(dkd_business_id_value);
+      dkd_set_business_detail(dkd_next_detail_value);
+      dkd_set_fee_mode(dkd_next_detail_value?.dkd_agreement?.dkd_fee_mode || dkd_fee_mode);
+      dkd_set_fee_value(String(dkd_next_detail_value?.dkd_agreement?.dkd_fee_value ?? dkd_numeric_value));
+      await dkd_load_dashboard();
+      Alert.alert('Anlaşma Kaydedildi',dkd_fee_mode==='percentage' ? 'Platform Hizmet Bedeli %'+dkd_numeric_value+' olarak aktif edildi.' : 'Platform Hizmet Bedeli '+dkd_numeric_value.toLocaleString('tr-TR')+' TL olarak aktif edildi.');
+    } catch(dkd_error_value){
+      const dkd_message_value=String(dkd_error_value.message || dkd_error_value);
+      dkd_set_error(dkd_message_value); Alert.alert('Kaydedilemedi',dkd_message_value);
+    } finally { dkd_set_busy(false); }
   };
-  const dkd_save_iban = async()=>{ dkd_set_busy(true); try { await dkd_admin_set_iban(dkd_iban,'DraBornGo'); await dkd_load_dashboard(); } catch(dkd_error_value){ dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } finally { dkd_set_busy(false); } };
+  const dkd_save_iban = async()=>{ dkd_set_busy(true); try { await dkd_admin_set_iban(dkd_iban,'Doğancan Kartal'); await dkd_load_dashboard(); } catch(dkd_error_value){ dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } finally { dkd_set_busy(false); } };
   const dkd_review_payment = async(dkd_payment_id_value,dkd_status_value)=>{ dkd_set_busy(true); try { await dkd_admin_review_payment(dkd_payment_id_value,dkd_status_value,''); await dkd_load_dashboard(); } catch(dkd_error_value){ dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } finally { dkd_set_busy(false); } };
   const dkd_show_receipt = async(dkd_path_value)=>{ try { const dkd_value=await dkd_admin_create_payment_receipt_signed_url(dkd_path_value); dkd_set_receipt_url(dkd_value || ''); } catch(dkd_error_value){ dkd_set_error(String(dkd_error_value.message || dkd_error_value)); } };
   const dkd_ack_popup = async()=>{ const dkd_key_value=dkd_dashboard?.dkd_popup?.dkd_notice_key; if(dkd_key_value)await dkd_panel_ack_platform_notice(dkd_key_value).catch(()=>null); dkd_set_dashboard((dkd_prev)=>({...(dkd_prev || {}),dkd_popup:null})); };
@@ -183,7 +197,7 @@ export default function AdminCenterScreen() {
           ].map(([dkd_label,dkd_value,dkd_color])=><View key={dkd_label} style={styles.miniCard}><View style={[styles.miniDot,{backgroundColor:dkd_color}]}/><Text style={styles.miniLabel}>{dkd_label}</Text><Text style={styles.miniValue}>{dkd_money(dkd_value)}</Text></View>)}</View>
 
           <Text style={styles.blockLabel}>PLATFORM HİZMET BEDELİ ANLAŞMASI</Text><View style={styles.segmentRow}>{['fixed','percentage'].map((dkd_value)=><Pressable key={dkd_value} onPress={()=>dkd_set_fee_mode(dkd_value)} style={[styles.segment,dkd_fee_mode===dkd_value&&styles.segmentActive]}><Text style={[styles.segmentText,dkd_fee_mode===dkd_value&&styles.segmentTextActive]}>{dkd_value==='fixed'?'Sabit TL':'Yüzdelik %'}</Text></Pressable>)}</View>
-          <View style={styles.feeInputRow}><TextInput keyboardType="decimal-pad" value={dkd_fee_value} onChangeText={dkd_set_fee_value} style={styles.feeInput} placeholder="Bedel" placeholderTextColor="#5D6B88"/><Pressable onPress={dkd_save_fee} style={styles.saveFeeButton}><LinearGradient colors={['#5EEBFF','#6D8DFF']} style={styles.saveFeeGradient}><MaterialCommunityIcons name="content-save-check" size={20} color="#07111F"/><Text style={styles.saveFeeText}>Kaydet</Text></LinearGradient></Pressable></View>
+          <View style={styles.feeInputRow}><TextInput keyboardType="decimal-pad" value={dkd_fee_value} onChangeText={dkd_set_fee_value} style={styles.feeInput} placeholder="Bedel" placeholderTextColor="#5D6B88"/><Pressable onPress={dkd_save_fee} disabled={dkd_busy} style={styles.saveFeeButton}><LinearGradient colors={['#5EEBFF','#6D8DFF']} style={styles.saveFeeGradient}>{dkd_busy?<ActivityIndicator color="#07111F"/>:<><MaterialCommunityIcons name="content-save-check" size={20} color="#07111F"/><Text style={styles.saveFeeText}>Kaydet</Text></>}</LinearGradient></Pressable></View>
 
           <Text style={styles.blockLabel}>AKTİF KURYELER</Text>{(dkd_business_detail.dkd_couriers || []).map((dkd_courier)=><View key={dkd_courier.dkd_courier_user_id} style={styles.courierRow}><View style={styles.avatar}><MaterialCommunityIcons name="motorbike" size={20} color={dkd_palette.cyan}/></View><View style={{flex:1}}><Text style={styles.courierName}>{dkd_courier.dkd_display_name}</Text><Text style={styles.courierMeta}>{dkd_courier.dkd_dbg_id || dkd_courier.dkd_email || ''}</Text></View><View><Text style={styles.courierMoney}>Gün {dkd_money(dkd_earning_value(dkd_courier.dkd_today))}</Text><Text style={styles.courierMeta}>Hf {dkd_money(dkd_earning_value(dkd_courier.dkd_week))} • Ay {dkd_money(dkd_earning_value(dkd_courier.dkd_month))}</Text></View></View>)}
 

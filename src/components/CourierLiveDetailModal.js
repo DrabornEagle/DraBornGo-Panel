@@ -101,6 +101,9 @@ function DkdMarker({ icon, tone = 'cyan' }) {
     <MaterialCommunityIcons name={icon} size={21} color="#06131D" />
   </View>;
 }
+function DkdCourierMarker() {
+  return <View style={styles.courierMarker}><RacingMotorcycle color="#60ECFF" accentColor="#FFFFFF" size={44}/></View>;
+}
 function DkdMapSurface({
   dkd_courier_point_value,
   dkd_drop_point_value,
@@ -138,7 +141,7 @@ function DkdMapSurface({
       {dkd_courier_point_value ? <MapboxGL.PointAnnotation
         id={`dkd-panel-courier-${dkd_courier_user_id_value}-${dkd_fullscreen_value ? 'full' : 'card'}`}
         coordinate={dkd_courier_point_value.dkd_coordinate_value}
-      ><DkdMarker icon="motorbike" /></MapboxGL.PointAnnotation> : null}
+      ><DkdCourierMarker /></MapboxGL.PointAnnotation> : null}
       {dkd_drop_point_value ? <MapboxGL.PointAnnotation
         id={`dkd-panel-drop-${dkd_order_id_value}-${dkd_fullscreen_value ? 'full' : 'card'}`}
         coordinate={dkd_drop_point_value.dkd_coordinate_value}
@@ -361,7 +364,7 @@ export default function CourierLiveDetailModal({ visible, courier, order, onClos
             </LinearGradient>
             <View style={styles.headerCopy}>
               <Text style={styles.kicker}>CANLI KURYE TAKİBİ</Text>
-              <Text style={styles.title}>{courier.dkd_display_name || 'Kurye'}</Text>
+              <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{courier.dkd_display_name || 'Kurye'}</Text>
               <Text style={styles.subtitle}>{courier.dkd_plate_no || 'Plaka yok'} • {courier.dkd_city || 'Bölge yok'}</Text>
             </View>
             <View style={[styles.onlineBadge,!dkd_location_fresh_value && styles.staleBadge]}>
@@ -495,7 +498,7 @@ const styles=StyleSheet.create({
   mapLiveBadge:{position:'absolute',top:12,left:12,minHeight:31,paddingHorizontal:10,borderRadius:12,backgroundColor:'rgba(5,18,31,.88)',flexDirection:'row',alignItems:'center',gap:6},mapStaleBadge:{backgroundColor:'rgba(52,37,20,.91)'},mapLiveText:{color:'#DDFBFF',fontSize:11.5,fontWeight:'900'},
   expandButton:{position:'absolute',top:12,right:12,width:48,height:48,borderRadius:16,backgroundColor:'rgba(4,13,24,.88)',alignItems:'center',justifyContent:'center'},followButton:{position:'absolute',right:12,bottom:12,width:48,height:48,borderRadius:16,backgroundColor:'rgba(4,13,24,.90)',borderWidth:1,borderColor:'rgba(117,235,255,.20)',alignItems:'center',justifyContent:'center'},followButtonActive:{backgroundColor:'#6DEBFF'},
   noLocation:{flex:1,alignItems:'center',justifyContent:'center',padding:28},noLocationTitle:{color:'#E4EFFB',fontSize:16,fontWeight:'900',marginTop:8},noLocationText:{color:'#8296B1',fontSize:13,lineHeight:18,fontWeight:'700',textAlign:'center',marginTop:5},
-  marker:{width:42,height:42,borderRadius:999,backgroundColor:'#6DEBFF',borderWidth:3,borderColor:'#FFF',alignItems:'center',justifyContent:'center'},markerGreen:{backgroundColor:'#70EFB5',borderRadius:14},
+  courierMarker:{width:54,height:44,alignItems:'center',justifyContent:'center'},marker:{width:42,height:42,borderRadius:999,backgroundColor:'#6DEBFF',borderWidth:3,borderColor:'#FFF',alignItems:'center',justifyContent:'center'},markerGreen:{backgroundColor:'#70EFB5',borderRadius:14},
   staleNotice:{minHeight:58,borderRadius:17,padding:12,marginTop:10,flexDirection:'row',alignItems:'center',gap:9,backgroundColor:'rgba(255,193,91,.08)',borderWidth:1,borderColor:'rgba(255,193,91,.15)'},staleNoticeText:{flex:1,color:'#D9C6A2',fontSize:12,lineHeight:17,fontWeight:'700'},
   metricRow:{flexDirection:'row',gap:8,marginTop:11},metric:{flex:1,minHeight:92,borderRadius:18,padding:10,borderWidth:1,borderColor:'rgba(255,255,255,.07)'},metricLabel:{color:'#9BAEC5',fontSize:10.5,fontWeight:'900',letterSpacing:.45,marginTop:7},metricValue:{color:'#FFF',fontSize:15,fontWeight:'900',marginTop:4},
   updatedCard:{minHeight:60,borderRadius:18,paddingHorizontal:13,flexDirection:'row',alignItems:'center',gap:10,marginTop:10,backgroundColor:'rgba(93,220,255,.07)',borderWidth:1,borderColor:'rgba(93,220,255,.11)'},updatedLabel:{color:'#7F9AB7',fontSize:10.5,fontWeight:'900',letterSpacing:.5},updatedValue:{color:'#D7E7F7',fontSize:13.5,fontWeight:'800',marginTop:2},
