@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { dkd_panel_geocode_delivery_address_value } from './mapboxTrackingService';
+import { dkd_panel_handle_job_realtime_notification } from './notificationService';
 
 function dkd_error_message(dkd_error_value, dkd_fallback_value = 'İşlem tamamlanamadı.') {
   if (!dkd_error_value) return dkd_fallback_value;
@@ -18,6 +20,8 @@ function dkd_error_message(dkd_error_value, dkd_fallback_value = 'İşlem tamaml
     ['dkd_max_online_hours_invalid', 'Azami çevrimiçi süre 1 ile 24 saat arasında olmalı.'],
     ['dkd_delivery_address_required', 'Teslimat adresi zorunlu.'],
     ['dkd_order_amount_invalid', 'Sipariş tutarı negatif olamaz.'],
+    ['dkd_dropoff_coordinate_invalid', 'Teslimat konumu geçersiz.'],
+    ['dkd_order_not_found', 'Sipariş bulunamadı veya bu işletmeye ait değil.'],
     ['max_online_hours_reached', 'Kurye bugünkü azami çevrimiçi süresine ulaştı.'],
   ];
   const dkd_match_value = dkd_map_value.find(([dkd_key_value]) => dkd_text_value.includes(dkd_key_value));
@@ -26,6 +30,14 @@ function dkd_error_message(dkd_error_value, dkd_fallback_value = 'İşlem tamaml
 
 function dkd_throw_rpc_error(dkd_error_value) {
   if (dkd_error_value) throw new Error(dkd_error_message(dkd_error_value));
+}
+
+function dkd_safe_coordinate_number(dkd_value, dkd_axis_value) {
+  const dkd_number_value = Number(dkd_value);
+  if (!Number.isFinite(dkd_number_value)) return null;
+  if (dkd_axis_value === 'lat' && Math.abs(dkd_number_value) > 90) return null;
+  if (dkd_axis_value === 'lng' && Math.abs(dkd_number_value) > 180) return null;
+  return dkd_number_value;
 }
 
 export async function dkd_panel_sign_in(dkd_email_value, dkd_password_value) {
@@ -104,21 +116,57 @@ export async function dkd_panel_unlink_courier(dkd_user_id_value) { const { data
 export async function dkd_panel_fetch_courier_earnings(dkd_user_id_value) { const { data, error } = await supabase.rpc('dkd_courier_earnings_summary_dkd', { dkd_param_user_id: dkd_user_id_value }); dkd_throw_rpc_error(error); return data || {}; }
 export async function dkd_panel_fetch_courier_report(dkd_user_id_value, dkd_day_value) { const { data, error } = await supabase.rpc('dkd_business_courier_report_dkd', { dkd_param_courier_user_id: dkd_user_id_value, dkd_param_day: dkd_day_value }); dkd_throw_rpc_error(error); return data || {}; }
 export async function dkd_panel_fetch_day_report(dkd_day_value) { const { data, error } = await supabase.rpc('dkd_business_day_report_dkd', { dkd_param_day: dkd_day_value }); dkd_throw_rpc_error(error); return data || {}; }
+
 export async function dkd_panel_create_order(dkd_form_value) {
+  const dkd_delivery_address_value = String(dkd_form_value.deliveryAddress || '').trim();
+  let dkd_dropoff_lat_value = dkd_safe_coordinate_number(dkd_form_value.dropoffLat, 'lat');
+  let dkd_dropoff_lng_value = dkd_safe_coordinate_number(dkd_form_value.dropoffLng, 'lng');
+  if ((dkd_dropoff_lat_value == null || dkd_dropoff_lng_value == null) && dkd_delivery_address_value) {
+    try {
+      const dkd_geocode_value = await dkd_panel_geocode_delivery_address_value(dkd_delivery_address_value, { dkd_city_value: dkd_form_value.city || 'Ankara' });
+      dkd_dropoff_lat_value = dkd_geocode_value?.dkd_lat_value ?? null;
+      dkd_dropoff_lng_value = dkd_geocode_value?.dkd_lng_value ?? null;
+    } catch {
+      dkd_dropoff_lat_value = null;
+      dkd_dropoff_lng_value = null;
+    }
+  }
   const { data, error } = await supabase.rpc('dkd_business_order_create_dkd', {
     dkd_param_order_ref: String(dkd_form_value.orderRef || '').trim(), dkd_param_title: String(dkd_form_value.title || 'Sipariş').trim(),
     dkd_param_customer_name: String(dkd_form_value.customerName || '').trim(), dkd_param_customer_phone: String(dkd_form_value.customerPhone || '').trim(),
-    dkd_param_delivery_address: String(dkd_form_value.deliveryAddress || '').trim(), dkd_param_delivery_note: String(dkd_form_value.deliveryNote || '').trim(),
+    dkd_param_delivery_address: dkd_delivery_address_value, dkd_param_delivery_note: String(dkd_form_value.deliveryNote || '').trim(),
     dkd_param_customer_charge_tl: Number(String(dkd_form_value.amount || '0').replace(',', '.')) || 0,
-    dkd_param_dropoff_lat: dkd_form_value.dropoffLat == null ? null : Number(dkd_form_value.dropoffLat), dkd_param_dropoff_lng: dkd_form_value.dropoffLng == null ? null : Number(dkd_form_value.dropoffLng),
+    dkd_param_dropoff_lat: dkd_dropoff_lat_value, dkd_param_dropoff_lng: dkd_dropoff_lng_value,
   });
   dkd_throw_rpc_error(error); return data || {};
+}
+
+export async function dkd_panel_set_order_dropoff_coordinates(dkd_job_id_value, dkd_lat_value, dkd_lng_value) {
+  const dkd_job_number_value = Number(dkd_job_id_value);
+  const dkd_lat_number_value = dkd_safe_coordinate_number(dkd_lat_value, 'lat');
+  const dkd_lng_number_value = dkd_safe_coordinate_number(dkd_lng_value, 'lng');
+  if (!Number.isFinite(dkd_job_number_value) || dkd_job_number_value <= 0 || dkd_lat_number_value == null || dkd_lng_number_value == null) {
+    return { dkd_ok_value: false, dkd_reason_value: 'invalid_coordinate' };
+  }
+  const { data, error } = await supabase.rpc('dkd_business_order_dropoff_set_dkd', {
+    dkd_param_job_id: dkd_job_number_value,
+    dkd_param_dropoff_lat: dkd_lat_number_value,
+    dkd_param_dropoff_lng: dkd_lng_number_value,
+  });
+  dkd_throw_rpc_error(error);
+  return data || {};
 }
 
 export function dkd_panel_subscribe_live(dkd_callback_value) {
   let dkd_channel_value = supabase.channel(`dkd-panel-live-${Date.now()}`);
   ['dkd_courier_jobs', 'dkd_courier_live_locations', 'dkd_business_couriers', 'dkd_courier_online_sessions'].forEach((dkd_table_value) => {
-    dkd_channel_value = dkd_channel_value.on('postgres_changes', { event: '*', schema: 'public', table: dkd_table_value }, dkd_callback_value);
+    dkd_channel_value = dkd_channel_value.on('postgres_changes', { event: '*', schema: 'public', table: dkd_table_value }, (dkd_payload_value) => {
+      const dkd_enriched_payload_value = { ...(dkd_payload_value || {}), table: dkd_table_value };
+      if (dkd_table_value === 'dkd_courier_jobs' && String(dkd_payload_value?.eventType || '').toUpperCase() === 'UPDATE') {
+        dkd_panel_handle_job_realtime_notification(dkd_enriched_payload_value).catch(() => null);
+      }
+      dkd_callback_value?.(dkd_enriched_payload_value);
+    });
   });
   dkd_channel_value.subscribe();
   return () => supabase.removeChannel(dkd_channel_value);
