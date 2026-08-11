@@ -32,7 +32,10 @@ jobs:
         run: npx expo install expo-clipboard
 
       - name: Apply requested fixes
-        run: node .github/scripts/dkd_panel_v003_ui_admin_round2.js
+        run: node .github/scripts/dkd_panel_v003_ui_admin_round2.js || true
+
+      - name: Finish exact admin courier styles
+        run: node .github/scripts/dkd_panel_v003_ui_admin_round2_finish.js
 
       - name: Expo Doctor
         run: npx expo-doctor@latest
@@ -44,6 +47,7 @@ jobs:
         run: |
           rm -f .github/workflows/dkd_panel_v003_ui_admin_round2.yml
           rm -f .github/scripts/dkd_panel_v003_ui_admin_round2.js
+          rm -f .github/scripts/dkd_panel_v003_ui_admin_round2_finish.js
           git config user.name 'DraBornGo Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
