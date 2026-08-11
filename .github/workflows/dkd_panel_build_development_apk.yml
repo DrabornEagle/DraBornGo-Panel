@@ -58,8 +58,8 @@ jobs:
           sdkmanager --install 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
       - name: Generate native Development Client project
         run: npx expo prebuild --platform android --clean --non-interactive
-      - name: Tune Gradle
-        run: printf '\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8\norg.gradle.daemon=false\norg.gradle.parallel=false\n' >> android/gradle.properties
+      - name: Tune Gradle for arm64 development device
+        run: printf '\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8\norg.gradle.daemon=false\norg.gradle.parallel=false\nreactNativeArchitectures=arm64-v8a\n' >> android/gradle.properties
       - name: Build Development APK
         shell: bash
         run: |
@@ -74,7 +74,7 @@ jobs:
           cp "$dkd_apk_path" dkd_development_apk_output/DraBornGo-Panel-v0.0.2-development.apk
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_development_apk_output/DraBornGo-Panel-v0.0.2-development.apk
           sha256sum dkd_development_apk_output/DraBornGo-Panel-v0.0.2-development.apk | tee dkd_development_apk_output/SHA256.txt
-          printf 'Development Client / debug APK. Connect with expo start --dev-client.\n' > dkd_development_apk_output/README.txt
+          printf 'Development Client / arm64 debug APK. Connect with expo start --dev-client.\n' > dkd_development_apk_output/README.txt
       - name: Upload Development APK
         uses: actions/upload-artifact@v4
         with:
