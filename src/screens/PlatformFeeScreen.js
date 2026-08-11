@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
-import { dkd_theme } from '../lib/theme';
 import {
   dkd_panel_fetch_platform_fee_profile,
   dkd_panel_set_platform_schedule,
@@ -11,86 +11,138 @@ import {
   dkd_panel_submit_platform_payment,
 } from '../services/adminService';
 
-const dkd_weekdays = [{v:1,l:'Pzt'},{v:2,l:'Sal'},{v:3,l:'Çar'},{v:4,l:'Per'},{v:5,l:'Cum'},{v:6,l:'Cmt'},{v:7,l:'Paz'}];
-const dkd_money = (dkd_value) => `${Number(dkd_value || 0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} TL`;
+const dkd_weekdays=[{v:1,l:'Pzt'},{v:2,l:'Sal'},{v:3,l:'Çar'},{v:4,l:'Per'},{v:5,l:'Cum'},{v:6,l:'Cmt'},{v:7,l:'Paz'}];
+const dkd_money=(dkd_value)=>`${Number(dkd_value || 0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} TL`;
+const dkd_palette={bg:'#050816',panel:'#0C1226',text:'#F8FAFF',soft:'#97A5C4',muted:'#687796',cyan:'#5EEBFF',blue:'#6F87FF',purple:'#A66BFF',pink:'#FF76B7',mint:'#63EDC2',gold:'#FFD37A',red:'#FF7188'};
 
-function DkdInfo({ label, value, icon }) { return <View style={styles.info}><MaterialCommunityIcons name={icon} size={20} color={dkd_theme.cyan} /><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue}>{value}</Text></View>; }
+function DkdGlow({ style, colors }){
+  const dkd_spin=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{const dkd_loop=Animated.loop(Animated.timing(dkd_spin,{toValue:1,duration:10000,easing:Easing.linear,useNativeDriver:true}));dkd_loop.start();return()=>dkd_loop.stop();},[dkd_spin]);
+  return <Animated.View pointerEvents="none" style={[styles.glow,style,{transform:[{rotate:dkd_spin.interpolate({inputRange:[0,1],outputRange:['0deg','360deg']})}]}]}><LinearGradient colors={colors} style={StyleSheet.absoluteFillObject}/></Animated.View>;
+}
 
-export default function PlatformFeeScreen() {
-  const [dkd_data,dkd_set_data] = useState(null);
-  const [dkd_loading,dkd_set_loading] = useState(true);
-  const [dkd_busy,dkd_set_busy] = useState(false);
-  const [dkd_error,dkd_set_error] = useState('');
-  const [dkd_cycle,dkd_set_cycle] = useState('weekly');
-  const [dkd_weekday,dkd_set_weekday] = useState(1);
-  const [dkd_month_day,dkd_set_month_day] = useState(1);
-  const [dkd_amount,dkd_set_amount] = useState('0');
-  const [dkd_receipt,dkd_set_receipt] = useState(null);
+function DkdMetric({ icon, label, value, colors, delay=0 }){
+  const dkd_anim=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{Animated.timing(dkd_anim,{toValue:1,duration:520,delay,easing:Easing.out(Easing.cubic),useNativeDriver:true}).start();},[dkd_anim,delay]);
+  return <Animated.View style={[styles.metricWrap,{opacity:dkd_anim,transform:[{translateY:dkd_anim.interpolate({inputRange:[0,1],outputRange:[16,0]})}]}]}><LinearGradient colors={colors} style={styles.metricCard}><View style={styles.metricIcon}><MaterialCommunityIcons name={icon} size={20} color="#07111F"/></View><Text style={styles.metricLabel}>{label}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={styles.metricValue}>{value}</Text></LinearGradient></Animated.View>;
+}
 
-  const dkd_load = useCallback(async () => {
+function DkdSection({ eyebrow, title, subtitle, icon }){
+  return <View style={styles.sectionHead}><View style={styles.sectionTitleRow}>{icon?<View style={styles.sectionIcon}><MaterialCommunityIcons name={icon} size={18} color={dkd_palette.cyan}/></View>:null}<View style={{flex:1}}><Text style={styles.sectionEyebrow}>{eyebrow}</Text><Text style={styles.sectionTitle}>{title}</Text></View></View>{subtitle?<Text style={styles.sectionSub}>{subtitle}</Text>:null}</View>;
+}
+
+function DkdStatusPill({ status }){
+  const dkd_config=status==='approved'?['Onaylandı',dkd_palette.mint,'check-circle']:status==='rejected'?['Reddedildi',dkd_palette.red,'close-circle']:['İnceleniyor',dkd_palette.gold,'clock-outline'];
+  return <View style={[styles.statusPill,{borderColor:`${dkd_config[1]}33`,backgroundColor:`${dkd_config[1]}12`}]}><MaterialCommunityIcons name={dkd_config[2]} size={14} color={dkd_config[1]}/><Text style={[styles.statusText,{color:dkd_config[1]}]}>{dkd_config[0]}</Text></View>;
+}
+
+export default function PlatformFeeScreen(){
+  const[dkd_data,dkd_set_data]=useState(null);
+  const[dkd_loading,dkd_set_loading]=useState(true);
+  const[dkd_busy,dkd_set_busy]=useState(false);
+  const[dkd_error,dkd_set_error]=useState('');
+  const[dkd_cycle,dkd_set_cycle]=useState('weekly');
+  const[dkd_weekday,dkd_set_weekday]=useState(1);
+  const[dkd_month_day,dkd_set_month_day]=useState(1);
+  const[dkd_amount,dkd_set_amount]=useState('0');
+  const[dkd_receipt,dkd_set_receipt]=useState(null);
+  const dkd_hero=useRef(new Animated.Value(0)).current;
+  const dkd_pulse=useRef(new Animated.Value(0)).current;
+
+  useEffect(()=>{
+    Animated.timing(dkd_hero,{toValue:1,duration:620,easing:Easing.out(Easing.cubic),useNativeDriver:true}).start();
+    const dkd_loop=Animated.loop(Animated.sequence([
+      Animated.timing(dkd_pulse,{toValue:1,duration:1450,easing:Easing.inOut(Easing.quad),useNativeDriver:true}),
+      Animated.timing(dkd_pulse,{toValue:0,duration:1450,easing:Easing.inOut(Easing.quad),useNativeDriver:true}),
+    ]));
+    dkd_loop.start();return()=>dkd_loop.stop();
+  },[dkd_hero,dkd_pulse]);
+
+  const dkd_load=useCallback(async()=>{
     dkd_set_error('');
-    try {
-      const dkd_value = await dkd_panel_fetch_platform_fee_profile();
+    try{
+      const dkd_value=await dkd_panel_fetch_platform_fee_profile();
       dkd_set_data(dkd_value || {});
       dkd_set_cycle(dkd_value?.dkd_payment_cycle || 'weekly');
       dkd_set_weekday(Number(dkd_value?.dkd_weekday || 1));
       dkd_set_month_day(Number(dkd_value?.dkd_month_day || 1));
       dkd_set_amount(String(Number(dkd_value?.dkd_outstanding_tl || 0).toFixed(2)));
-    } catch (dkd_error_value) { dkd_set_error(String(dkd_error_value.message || dkd_error_value)); }
-    finally { dkd_set_loading(false); }
+    }catch(dkd_error_value){dkd_set_error(String(dkd_error_value.message || dkd_error_value));}
+    finally{dkd_set_loading(false);}
   },[]);
-  useEffect(() => { dkd_load(); },[dkd_load]);
+  useEffect(()=>{dkd_load();},[dkd_load]);
 
-  const dkd_save_schedule = async () => {
-    dkd_set_busy(true); dkd_set_error('');
-    try { await dkd_panel_set_platform_schedule(dkd_cycle,dkd_weekday,dkd_month_day); await dkd_load(); }
-    catch (dkd_error_value) { dkd_set_error(String(dkd_error_value.message || dkd_error_value)); }
-    finally { dkd_set_busy(false); }
+  const dkd_save_schedule=async()=>{dkd_set_busy(true);dkd_set_error('');try{await dkd_panel_set_platform_schedule(dkd_cycle,dkd_weekday,dkd_month_day);await dkd_load();}catch(dkd_error_value){dkd_set_error(String(dkd_error_value.message || dkd_error_value));}finally{dkd_set_busy(false);}};
+  const dkd_pick_receipt=async()=>{const dkd_value=await DocumentPicker.getDocumentAsync({type:['image/jpeg','image/png','image/webp','application/pdf'],copyToCacheDirectory:true,multiple:false});if(!dkd_value.canceled&&dkd_value.assets?.[0])dkd_set_receipt(dkd_value.assets[0]);};
+  const dkd_submit=async()=>{
+    const dkd_amount_value=Number(String(dkd_amount).replace(',','.'));
+    if(!(dkd_amount_value>0))return dkd_set_error('Ödeme tutarı 0 TL’den büyük olmalı.');
+    if(!dkd_receipt?.uri)return dkd_set_error('Önce ödeme dekontunu seç.');
+    dkd_set_busy(true);dkd_set_error('');
+    try{const dkd_path_value=await dkd_panel_upload_platform_receipt(dkd_receipt);await dkd_panel_submit_platform_payment(dkd_amount_value,dkd_path_value);dkd_set_receipt(null);await dkd_load();}
+    catch(dkd_error_value){dkd_set_error(String(dkd_error_value.message || dkd_error_value));}
+    finally{dkd_set_busy(false);}
   };
-  const dkd_pick_receipt = async () => {
-    const dkd_value = await DocumentPicker.getDocumentAsync({ type:['image/jpeg','image/png','image/webp','application/pdf'],copyToCacheDirectory:true,multiple:false });
-    if (!dkd_value.canceled && dkd_value.assets?.[0]) dkd_set_receipt(dkd_value.assets[0]);
-  };
-  const dkd_submit = async () => {
-    const dkd_amount_value = Number(String(dkd_amount).replace(',','.'));
-    if (!(dkd_amount_value > 0)) return dkd_set_error('Ödeme tutarı 0 TL’den büyük olmalı.');
-    if (!dkd_receipt?.uri) return dkd_set_error('Önce ödeme dekontunu seç.');
-    dkd_set_busy(true); dkd_set_error('');
-    try {
-      const dkd_path_value = await dkd_panel_upload_platform_receipt(dkd_receipt);
-      await dkd_panel_submit_platform_payment(dkd_amount_value,dkd_path_value);
-      dkd_set_receipt(null); await dkd_load();
-    } catch (dkd_error_value) { dkd_set_error(String(dkd_error_value.message || dkd_error_value)); }
-    finally { dkd_set_busy(false); }
-  };
-  const dkd_ack_popup = async () => {
-    const dkd_key_value = dkd_data?.dkd_popup?.dkd_notice_key;
-    if (dkd_key_value) await dkd_panel_ack_platform_notice(dkd_key_value).catch(() => null);
-    dkd_set_data((dkd_prev) => ({...(dkd_prev || {}),dkd_popup:null}));
-  };
+  const dkd_ack_popup=async()=>{const dkd_key_value=dkd_data?.dkd_popup?.dkd_notice_key;if(dkd_key_value)await dkd_panel_ack_platform_notice(dkd_key_value).catch(()=>null);dkd_set_data((dkd_prev)=>({...(dkd_prev || {}),dkd_popup:null}));};
 
-  if (dkd_loading) return <View style={styles.loading}><ActivityIndicator size="large" color={dkd_theme.cyan}/><Text style={styles.muted}>Platform Hizmet Bedeli hazırlanıyor…</Text></View>;
-  const dkd_fee_text = dkd_data?.dkd_fee_mode === 'percentage' ? `%${Number(dkd_data?.dkd_fee_value || 0)}` : dkd_money(dkd_data?.dkd_fee_value);
-  return <View style={styles.root}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Text style={styles.kicker}>ÖDEME VE ANLAŞMA</Text><Text style={styles.title}>Platform Hizmet Bedeli</Text><Text style={styles.subtitle}>Teslim edilen paketler için işletmenize tanımlanan hizmet bedelini, ödeme gününü ve ödeme bildirimlerini buradan yönet.</Text>
-    {!!dkd_error && <View style={styles.errorBox}><Text style={styles.error}>{dkd_error}</Text></View>}
-    <View style={styles.infoGrid}><DkdInfo icon="hand-coin-outline" label="ANLAŞMAN" value={dkd_fee_text}/><DkdInfo icon="cash-clock" label="GÜNCEL BAKİYE" value={dkd_money(dkd_data?.dkd_outstanding_tl)}/><DkdInfo icon="cash-check" label="BİLDİRİLEN/ÖDENEN" value={dkd_money(dkd_data?.dkd_submitted_or_paid_tl)}/><DkdInfo icon="cash-multiple" label="TOPLAM HİZMET BEDELİ" value={dkd_money(dkd_data?.dkd_total_fee_tl)}/></View>
+  if(dkd_loading)return <View style={styles.loading}><ActivityIndicator size="large" color={dkd_palette.cyan}/><Text style={styles.loadingText}>Ödeme merkezi hazırlanıyor…</Text></View>;
 
-    <View style={styles.card}><Text style={styles.cardTitle}>Ödeme Bilgisi</Text><Text style={styles.label}>ALICI</Text><Text style={styles.bigValue}>{dkd_data?.dkd_account_name || 'DraBornGo'}</Text><Text style={styles.label}>IBAN</Text><Text selectable style={styles.iban}>{dkd_data?.dkd_iban || 'IBAN henüz Yönetim Merkezi tarafından tanımlanmadı.'}</Text></View>
+  const dkd_fee_text=dkd_data?.dkd_fee_mode==='percentage'?`%${Number(dkd_data?.dkd_fee_value || 0)}`:dkd_money(dkd_data?.dkd_fee_value);
+  const dkd_due_text=dkd_cycle==='weekly'?(dkd_weekdays.find((dkd_item)=>dkd_item.v===dkd_weekday)?.l || 'Pzt'):`Ayın ${dkd_month_day}. günü`;
+  const dkd_balance=Number(dkd_data?.dkd_outstanding_tl || 0);
 
-    <View style={styles.card}><Text style={styles.cardTitle}>Ödeme Gününü Seç</Text><Text style={styles.cardText}>Haftalık veya aylık ödeme düzenini sen seçebilirsin. Ödeme gününde bildirim ve tek seferlik bilgilendirme açılır.</Text><View style={styles.switchRow}>{[['weekly','Haftalık'],['monthly','Aylık']].map(([dkd_value,dkd_label]) => <Pressable key={dkd_value} onPress={() => dkd_set_cycle(dkd_value)} style={[styles.switch,dkd_cycle===dkd_value&&styles.switchActive]}><Text style={[styles.switchText,dkd_cycle===dkd_value&&styles.switchTextActive]}>{dkd_label}</Text></Pressable>)}</View>
-      {dkd_cycle==='weekly' ? <View style={styles.chips}>{dkd_weekdays.map((dkd_day) => <Pressable key={dkd_day.v} onPress={() => dkd_set_weekday(dkd_day.v)} style={[styles.chip,dkd_weekday===dkd_day.v&&styles.chipActive]}><Text style={[styles.chipText,dkd_weekday===dkd_day.v&&styles.chipTextActive]}>{dkd_day.l}</Text></Pressable>)}</View> : <><Text style={styles.label}>AYIN GÜNÜ</Text><View style={styles.chips}>{Array.from({length:31},(_,dkd_index)=>dkd_index+1).map((dkd_day) => <Pressable key={dkd_day} onPress={() => dkd_set_month_day(dkd_day)} style={[styles.dayChip,dkd_month_day===dkd_day&&styles.chipActive]}><Text style={[styles.chipText,dkd_month_day===dkd_day&&styles.chipTextActive]}>{dkd_day}</Text></Pressable>)}</View></>}
-      <Pressable disabled={dkd_busy} onPress={dkd_save_schedule} style={styles.primary}><Text style={styles.primaryText}>ÖDEME GÜNÜNÜ KAYDET</Text></Pressable>
-    </View>
+  return <View style={styles.root}>
+    <DkdGlow style={styles.glowOne} colors={['rgba(94,235,255,.32)','rgba(111,135,255,.02)']}/><DkdGlow style={styles.glowTwo} colors={['rgba(255,118,183,.24)','rgba(166,107,255,.02)']}/>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.View style={{opacity:dkd_hero,transform:[{translateY:dkd_hero.interpolate({inputRange:[0,1],outputRange:[18,0]})}]}}>
+        <LinearGradient colors={['#112E59','#40225D','#6A245B']} start={{x:0,y:0}} end={{x:1,y:1}} style={styles.hero}>
+          <View style={styles.heroTop}><View style={styles.heroBadge}><View style={styles.liveDot}/><Text style={styles.heroBadgeText}>ÖDEME & ANLAŞMA</Text></View><Animated.View style={[styles.heroIcon,{opacity:dkd_pulse.interpolate({inputRange:[0,1],outputRange:[.55,1]}),transform:[{scale:dkd_pulse.interpolate({inputRange:[0,1],outputRange:[.94,1.08]})}]}]}><MaterialCommunityIcons name="hand-coin" size={27} color="#FFF"/></Animated.View></View>
+          <Text style={styles.heroTitle}>Platform Hizmet Bedeli</Text><Text style={styles.heroSub}>Anlaşmanı, ödeme gününü, güncel bakiyeni ve dekont bildirimlerini tek premium finans ekranından yönet.</Text>
+          <View style={styles.balancePanel}><View><Text style={styles.balanceLabel}>GÜNCEL BAKİYE</Text><Text style={styles.balanceValue}>{dkd_money(dkd_balance)}</Text><Text style={styles.balanceHint}>{dkd_balance>0?'Ödeme bekleyen tutar':'Şu anda ödenecek bakiye yok'}</Text></View><View style={styles.balanceIcon}><MaterialCommunityIcons name={dkd_balance>0?'cash-clock':'check-decagram'} size={30} color={dkd_balance>0?dkd_palette.gold:dkd_palette.mint}/></View></View>
+        </LinearGradient>
+      </Animated.View>
 
-    <View style={styles.card}><Text style={styles.cardTitle}>Ödeme Bildir</Text><Text style={styles.cardText}>Ödemeyi yaptıktan sonra tutarı girip dekontunu yükle. Bildirim anında Yönetim Merkezi’ne düşer.</Text><Text style={styles.label}>ÖDEME TUTARI</Text><TextInput keyboardType="decimal-pad" value={dkd_amount} onChangeText={dkd_set_amount} style={styles.input}/><Pressable onPress={dkd_pick_receipt} style={styles.receiptButton}><MaterialCommunityIcons name="file-upload-outline" size={20} color={dkd_theme.cyan}/><View style={{flex:1}}><Text style={styles.receiptTitle}>{dkd_receipt?.name || 'Dekont Seç'}</Text><Text style={styles.receiptMeta}>JPG, PNG, WEBP veya PDF • en fazla 10 MB</Text></View></Pressable><Pressable disabled={dkd_busy} onPress={dkd_submit} style={styles.primary}>{dkd_busy?<ActivityIndicator color="#07121D"/>:<Text style={styles.primaryText}>ÖDEMEYİ BİLDİR</Text>}</Pressable></View>
+      {!!dkd_error&&<View style={styles.errorBox}><MaterialCommunityIcons name="alert-circle" size={19} color={dkd_palette.red}/><Text style={styles.errorText}>{dkd_error}</Text></View>}
 
-    <View style={styles.card}><Text style={styles.cardTitle}>Son Ödeme Bildirimleri</Text>{(dkd_data?.dkd_recent_payments || []).length ? (dkd_data.dkd_recent_payments || []).map((dkd_payment) => <View key={dkd_payment.dkd_id} style={styles.row}><View style={{flex:1}}><Text style={styles.rowTitle}>{dkd_money(dkd_payment.dkd_amount_tl)}</Text><Text style={styles.rowMeta}>{new Date(dkd_payment.dkd_submitted_at).toLocaleString('tr-TR')}</Text></View><Text style={[styles.status,dkd_payment.dkd_status==='approved'&&styles.statusOk,dkd_payment.dkd_status==='rejected'&&styles.statusBad]}>{dkd_payment.dkd_status==='approved'?'Onaylandı':dkd_payment.dkd_status==='rejected'?'Reddedildi':'İnceleniyor'}</Text></View>) : <Text style={styles.empty}>Henüz ödeme bildirimi yok.</Text>}</View>
-    <View style={styles.card}><Text style={styles.cardTitle}>Son Paket Hizmet Bedelleri</Text>{(dkd_data?.dkd_recent_ledger || []).length ? (dkd_data.dkd_recent_ledger || []).map((dkd_item) => <View key={dkd_item.dkd_job_id} style={styles.row}><View style={{flex:1}}><Text style={styles.rowTitle}>Paket #{dkd_item.dkd_job_id}</Text><Text style={styles.rowMeta}>{new Date(dkd_item.dkd_completed_at).toLocaleString('tr-TR')}</Text></View><Text style={styles.money}>{dkd_money(dkd_item.dkd_platform_fee_tl)}</Text></View>) : <Text style={styles.empty}>Henüz tamamlanan paket hizmet bedeli kaydı yok.</Text>}</View>
-    <View style={{height:110}} />
-  </ScrollView>
-  <Modal transparent visible={Boolean(dkd_data?.dkd_popup)} animationType="fade" onRequestClose={dkd_ack_popup}><View style={styles.modalBackdrop}><View style={styles.modalCard}><View style={styles.modalIcon}><MaterialCommunityIcons name="calendar-alert" size={31} color={dkd_theme.cyan}/></View><Text style={styles.modalTitle}>{dkd_data?.dkd_popup?.dkd_title}</Text><Text style={styles.modalText}>{dkd_data?.dkd_popup?.dkd_body}</Text><Text style={styles.modalAmount}>{dkd_money(dkd_data?.dkd_popup?.dkd_amount_tl)}</Text><Pressable onPress={dkd_ack_popup} style={styles.primary}><Text style={styles.primaryText}>OKUDUM, ANLADIM</Text></Pressable></View></View></Modal>
+      <View style={styles.metricGrid}>
+        <DkdMetric icon="handshake-outline" label="ANLAŞMAN" value={dkd_fee_text} colors={['#5EEBFF','#6598FF']} delay={50}/>
+        <DkdMetric icon="calendar-clock" label="ÖDEME GÜNÜ" value={dkd_due_text} colors={['#FFD37A','#FF9F6F']} delay={100}/>
+        <DkdMetric icon="cash-check" label="BİLDİRİLEN/ÖDENEN" value={dkd_money(dkd_data?.dkd_submitted_or_paid_tl)} colors={['#63EDC2','#4BCFA8']} delay={150}/>
+        <DkdMetric icon="cash-multiple" label="TOPLAM HİZMET BEDELİ" value={dkd_money(dkd_data?.dkd_total_fee_tl)} colors={['#A66BFF','#FF76B7']} delay={200}/>
+      </View>
+
+      <DkdSection eyebrow="TAHSİLAT BİLGİSİ" title="Ödeme Hesabı" subtitle="Ödeme yaparken aşağıdaki alıcı ve IBAN bilgisini kullan." icon="bank-outline"/>
+      <LinearGradient colors={['#131C38','#17142F','#24143A']} style={styles.bankCard}>
+        <View style={styles.bankHeader}><View style={styles.bankLogo}><MaterialCommunityIcons name="bank" size={25} color={dkd_palette.gold}/></View><View style={{flex:1}}><Text style={styles.bankBrand}>DraBornGo</Text><Text style={styles.bankSub}>Platform tahsilat hesabı</Text></View><MaterialCommunityIcons name="shield-check" size={23} color={dkd_palette.mint}/></View>
+        <View style={styles.bankDivider}/><Text style={styles.bankLabel}>ALICI</Text><Text style={styles.bankValue}>{dkd_data?.dkd_account_name || 'DraBornGo'}</Text><Text style={styles.bankLabel}>IBAN</Text><Text selectable style={[styles.bankValue,styles.ibanValue]}>{dkd_data?.dkd_iban || 'IBAN henüz Yönetim Merkezi tarafından tanımlanmadı.'}</Text>
+      </LinearGradient>
+
+      <DkdSection eyebrow="PLANLAMA" title="Ödeme Gününü Seç" subtitle="Haftalık veya aylık ödeme düzenini belirle. Seçtiğin günde bildirim ve tek seferlik popup açılır." icon="calendar-edit"/>
+      <View style={styles.scheduleCard}>
+        <View style={styles.cycleSwitch}>{[['weekly','Haftalık','calendar-week'],['monthly','Aylık','calendar-month']].map(([dkd_value,dkd_label,dkd_icon])=><Pressable key={dkd_value} onPress={()=>dkd_set_cycle(dkd_value)} style={[styles.cycleButton,dkd_cycle===dkd_value&&styles.cycleActive]}><MaterialCommunityIcons name={dkd_icon} size={19} color={dkd_cycle===dkd_value?'#07111F':dkd_palette.soft}/><Text style={[styles.cycleText,dkd_cycle===dkd_value&&styles.cycleTextActive]}>{dkd_label}</Text></Pressable>)}</View>
+        {dkd_cycle==='weekly'?<View style={styles.dayGrid}>{dkd_weekdays.map((dkd_day)=><Pressable key={dkd_day.v} onPress={()=>dkd_set_weekday(dkd_day.v)} style={[styles.dayButton,dkd_weekday===dkd_day.v&&styles.dayActive]}><Text style={[styles.dayText,dkd_weekday===dkd_day.v&&styles.dayTextActive]}>{dkd_day.l}</Text></Pressable>)}</View>:<><Text style={styles.fieldLabel}>AYIN GÜNÜ</Text><View style={styles.monthGrid}>{Array.from({length:31},(_,dkd_index)=>dkd_index+1).map((dkd_day)=><Pressable key={dkd_day} onPress={()=>dkd_set_month_day(dkd_day)} style={[styles.monthDay,dkd_month_day===dkd_day&&styles.dayActive]}><Text style={[styles.dayText,dkd_month_day===dkd_day&&styles.dayTextActive]}>{dkd_day}</Text></Pressable>)}</View></>}
+        <Pressable disabled={dkd_busy} onPress={dkd_save_schedule} style={styles.primaryPress}><LinearGradient colors={['#5EEBFF','#6D8DFF']} style={styles.primaryGradient}>{dkd_busy?<ActivityIndicator color="#07111F"/>:<><MaterialCommunityIcons name="content-save-check" size={20} color="#07111F"/><Text style={styles.primaryText}>ÖDEME GÜNÜNÜ KAYDET</Text></>}</LinearGradient></Pressable>
+      </View>
+
+      <DkdSection eyebrow="ÖDEME BİLDİRİMİ" title="Dekont Gönder" subtitle="Ödemeyi yaptıktan sonra tutarı gir ve dekontunu yükle. Yönetim Merkezi anında bilgilendirilir." icon="receipt-text-arrow-right"/>
+      <LinearGradient colors={['#101A34','#14172E']} style={styles.paymentForm}>
+        <Text style={styles.fieldLabel}>ÖDEME TUTARI</Text><View style={styles.amountWrap}><MaterialCommunityIcons name="currency-try" size={22} color={dkd_palette.gold}/><TextInput keyboardType="decimal-pad" value={dkd_amount} onChangeText={dkd_set_amount} style={styles.amountInput}/></View>
+        <Pressable onPress={dkd_pick_receipt} style={[styles.receiptPicker,dkd_receipt&&styles.receiptPickerSelected]}><View style={[styles.receiptIcon,dkd_receipt&&styles.receiptIconSelected]}><MaterialCommunityIcons name={dkd_receipt?'file-check':'file-upload-outline'} size={24} color={dkd_receipt?dkd_palette.mint:dkd_palette.cyan}/></View><View style={{flex:1}}><Text style={styles.receiptName}>{dkd_receipt?.name || 'Dekont Seç'}</Text><Text style={styles.receiptMeta}>{dkd_receipt?'Dosya hazır • değiştirmek için dokun':'JPG, PNG, WEBP veya PDF • en fazla 10 MB'}</Text></View><MaterialCommunityIcons name="chevron-right" size={22} color={dkd_palette.muted}/></Pressable>
+        <Pressable disabled={dkd_busy} onPress={dkd_submit} style={styles.submitPress}><LinearGradient colors={['#63EDC2','#55D8AE']} style={styles.submitGradient}>{dkd_busy?<ActivityIndicator color="#07111F"/>:<><MaterialCommunityIcons name="send-check" size={20} color="#07111F"/><Text style={styles.submitText}>ÖDEMEYİ BİLDİR</Text></>}</LinearGradient></Pressable>
+      </LinearGradient>
+
+      <DkdSection eyebrow="ÖDEME GEÇMİŞİ" title="Son Bildirimler" subtitle="Gönderdiğin ödemelerin inceleme durumları." icon="history"/>
+      {(dkd_data?.dkd_recent_payments || []).length?(dkd_data.dkd_recent_payments || []).map((dkd_payment)=><View key={dkd_payment.dkd_id} style={styles.historyCard}><View style={styles.historyIcon}><MaterialCommunityIcons name="receipt-text" size={20} color={dkd_palette.cyan}/></View><View style={{flex:1}}><Text style={styles.historyAmount}>{dkd_money(dkd_payment.dkd_amount_tl)}</Text><Text style={styles.historyDate}>{new Date(dkd_payment.dkd_submitted_at).toLocaleString('tr-TR')}</Text></View><DkdStatusPill status={dkd_payment.dkd_status}/></View>):<View style={styles.emptyCard}><MaterialCommunityIcons name="receipt-text-outline" size={29} color={dkd_palette.muted}/><Text style={styles.emptyTitle}>Henüz ödeme bildirimi yok</Text><Text style={styles.emptyText}>İlk dekont gönderiminden sonra geçmiş burada oluşacak.</Text></View>}
+
+      <DkdSection eyebrow="PAKET HAREKETLERİ" title="Son Hizmet Bedelleri" subtitle="Tamamlanan paketlere ait son platform hizmet bedeli kayıtları." icon="package-variant-closed-check"/>
+      {(dkd_data?.dkd_recent_ledger || []).length?(dkd_data.dkd_recent_ledger || []).map((dkd_item)=><View key={dkd_item.dkd_job_id} style={styles.ledgerCard}><View style={styles.ledgerIcon}><MaterialCommunityIcons name="package-variant" size={19} color={dkd_palette.purple}/></View><View style={{flex:1}}><Text style={styles.ledgerTitle}>Paket #{dkd_item.dkd_job_id}</Text><Text style={styles.historyDate}>{new Date(dkd_item.dkd_completed_at).toLocaleString('tr-TR')}</Text></View><Text style={styles.ledgerMoney}>{dkd_money(dkd_item.dkd_platform_fee_tl)}</Text></View>):<View style={styles.emptyCard}><MaterialCommunityIcons name="package-variant-closed" size={29} color={dkd_palette.muted}/><Text style={styles.emptyTitle}>Henüz paket kaydı yok</Text><Text style={styles.emptyText}>Tamamlanan paketler burada listelenecek.</Text></View>}
+      <View style={{height:115}}/>
+    </ScrollView>
+
+    <Modal transparent visible={Boolean(dkd_data?.dkd_popup)} animationType="fade" onRequestClose={dkd_ack_popup}><View style={styles.modalBackdrop}><LinearGradient colors={['#172A53','#28183F','#451A45']} style={styles.modalCard}><View style={styles.modalIcon}><MaterialCommunityIcons name="calendar-alert" size={33} color={dkd_palette.gold}/></View><Text style={styles.modalTitle}>{dkd_data?.dkd_popup?.dkd_title}</Text><Text style={styles.modalText}>{dkd_data?.dkd_popup?.dkd_body}</Text><Text style={styles.modalAmount}>{dkd_money(dkd_data?.dkd_popup?.dkd_amount_tl)}</Text><Pressable onPress={dkd_ack_popup} style={styles.modalPress}><LinearGradient colors={['#5EEBFF','#6D8DFF']} style={styles.modalGradient}><Text style={styles.modalButtonText}>OKUDUM, ANLADIM</Text></LinearGradient></Pressable></LinearGradient></View></Modal>
   </View>;
 }
 
-const styles=StyleSheet.create({root:{flex:1,backgroundColor:dkd_theme.background},content:{padding:14,paddingTop:18},loading:{flex:1,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:dkd_theme.background},muted:{color:dkd_theme.textSoft,fontWeight:'800'},kicker:{color:dkd_theme.cyan,fontSize:12.5,fontWeight:'900',letterSpacing:1.1},title:{color:dkd_theme.text,fontSize:28,fontWeight:'900',marginTop:3},subtitle:{color:dkd_theme.textSoft,fontSize:14,lineHeight:20,fontWeight:'700',marginTop:4,marginBottom:14},errorBox:{padding:11,borderRadius:15,backgroundColor:'rgba(255,92,117,.08)',borderWidth:1,borderColor:'rgba(255,92,117,.18)',marginBottom:10},error:{color:'#FFB6C0',fontWeight:'800'},infoGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},info:{width:'47%',flexGrow:1,minHeight:103,padding:12,borderRadius:20,backgroundColor:dkd_theme.surface,borderWidth:1,borderColor:dkd_theme.border},infoLabel:{color:dkd_theme.muted,fontSize:10.5,fontWeight:'900',marginTop:6},infoValue:{color:dkd_theme.text,fontSize:16,fontWeight:'900',marginTop:3},card:{marginTop:11,padding:13,borderRadius:22,backgroundColor:dkd_theme.surface,borderWidth:1,borderColor:dkd_theme.border},cardTitle:{color:dkd_theme.text,fontSize:19,fontWeight:'900'},cardText:{color:dkd_theme.textSoft,fontSize:13,lineHeight:18,fontWeight:'700',marginTop:4},label:{color:dkd_theme.muted,fontSize:11,fontWeight:'900',letterSpacing:.6,marginTop:12,marginBottom:5},bigValue:{color:dkd_theme.text,fontSize:16,fontWeight:'900'},iban:{color:dkd_theme.cyan,fontSize:15,fontWeight:'900',lineHeight:21},switchRow:{flexDirection:'row',gap:8,marginTop:12},switch:{flex:1,minHeight:46,borderRadius:14,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:dkd_theme.border,backgroundColor:'rgba(255,255,255,.03)'},switchActive:{backgroundColor:dkd_theme.cyan},switchText:{color:dkd_theme.textSoft,fontWeight:'900'},switchTextActive:{color:'#07121D'},chips:{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:9},chip:{flex:1,minWidth:42,minHeight:40,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.03)',borderWidth:1,borderColor:dkd_theme.border},dayChip:{width:40,height:40,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.03)',borderWidth:1,borderColor:dkd_theme.border},chipActive:{backgroundColor:dkd_theme.cyan},chipText:{color:dkd_theme.textSoft,fontSize:12,fontWeight:'900'},chipTextActive:{color:'#07121D'},primary:{minHeight:49,borderRadius:15,backgroundColor:dkd_theme.cyan,alignItems:'center',justifyContent:'center',marginTop:11},primaryText:{color:'#07121D',fontSize:13.5,fontWeight:'900'},input:{minHeight:49,borderRadius:15,paddingHorizontal:12,color:dkd_theme.text,fontSize:15,fontWeight:'800',backgroundColor:'rgba(255,255,255,.035)',borderWidth:1,borderColor:dkd_theme.border},receiptButton:{minHeight:64,borderRadius:16,marginTop:9,padding:10,flexDirection:'row',alignItems:'center',gap:9,backgroundColor:'rgba(98,231,255,.05)',borderWidth:1,borderColor:'rgba(98,231,255,.15)'},receiptTitle:{color:dkd_theme.text,fontSize:13.5,fontWeight:'900'},receiptMeta:{color:dkd_theme.textSoft,fontSize:11.5,fontWeight:'700',marginTop:2},row:{minHeight:55,paddingVertical:8,borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,.06)',flexDirection:'row',alignItems:'center',gap:8},rowTitle:{color:dkd_theme.text,fontSize:14,fontWeight:'900'},rowMeta:{color:dkd_theme.textSoft,fontSize:11.5,fontWeight:'700',marginTop:2},status:{color:'#FFD28D',fontSize:11.5,fontWeight:'900'},statusOk:{color:'#A8F1D0'},statusBad:{color:'#FFB6C0'},money:{color:'#A8F1D0',fontSize:14,fontWeight:'900'},empty:{color:dkd_theme.textSoft,fontSize:13,fontWeight:'700',marginTop:10},modalBackdrop:{flex:1,backgroundColor:'rgba(1,7,14,.8)',alignItems:'center',justifyContent:'center',padding:22},modalCard:{width:'100%',maxWidth:390,padding:20,borderRadius:26,backgroundColor:'#0B1726',borderWidth:1,borderColor:'rgba(98,231,255,.22)'},modalIcon:{width:60,height:60,borderRadius:20,alignSelf:'center',alignItems:'center',justifyContent:'center',backgroundColor:'rgba(98,231,255,.09)'},modalTitle:{color:dkd_theme.text,fontSize:22,fontWeight:'900',textAlign:'center',marginTop:12},modalText:{color:dkd_theme.textSoft,fontSize:14,lineHeight:21,fontWeight:'700',textAlign:'center',marginTop:8},modalAmount:{color:'#A8F1D0',fontSize:25,fontWeight:'900',textAlign:'center',marginTop:10}});
+const styles=StyleSheet.create({
+  root:{flex:1,backgroundColor:dkd_palette.bg},content:{padding:16,paddingTop:18},loading:{flex:1,alignItems:'center',justifyContent:'center',gap:11,backgroundColor:dkd_palette.bg},loadingText:{color:dkd_palette.soft,fontWeight:'800'},glow:{position:'absolute',borderRadius:999,overflow:'hidden',opacity:.62},glowOne:{width:250,height:250,top:-120,right:-120},glowTwo:{width:280,height:280,bottom:120,left:-170},hero:{borderRadius:30,padding:18,borderWidth:1,borderColor:'rgba(255,255,255,.12)',overflow:'hidden'},heroTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},heroBadge:{flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:10,paddingVertical:7,borderRadius:999,backgroundColor:'rgba(5,10,24,.26)'},liveDot:{width:8,height:8,borderRadius:8,backgroundColor:dkd_palette.mint},heroBadgeText:{color:'#E7F8FF',fontSize:10,fontWeight:'900',letterSpacing:1.1},heroIcon:{width:50,height:50,borderRadius:17,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.11)'},heroTitle:{color:'#FFF',fontSize:31,fontWeight:'900',letterSpacing:-.7,marginTop:19},heroSub:{color:'rgba(238,244,255,.78)',fontSize:14,lineHeight:20,fontWeight:'700',marginTop:7},balancePanel:{marginTop:18,borderRadius:20,padding:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'rgba(4,9,24,.28)',borderWidth:1,borderColor:'rgba(255,255,255,.09)'},balanceLabel:{color:'rgba(238,244,255,.58)',fontSize:10,fontWeight:'900',letterSpacing:1},balanceValue:{color:'#FFF',fontSize:25,fontWeight:'900',marginTop:4},balanceHint:{color:'rgba(238,244,255,.64)',fontSize:11.5,fontWeight:'700',marginTop:3},balanceIcon:{width:52,height:52,borderRadius:18,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.08)'},errorBox:{flexDirection:'row',gap:8,alignItems:'center',padding:12,borderRadius:17,marginTop:12,backgroundColor:'rgba(255,113,136,.08)',borderWidth:1,borderColor:'rgba(255,113,136,.17)'},errorText:{flex:1,color:'#FFC2CC',fontSize:13,fontWeight:'800'},metricGrid:{flexDirection:'row',flexWrap:'wrap',gap:9,marginTop:14},metricWrap:{width:'47%',flexGrow:1},metricCard:{minHeight:126,borderRadius:23,padding:13,justifyContent:'flex-end',overflow:'hidden'},metricIcon:{position:'absolute',top:12,right:12,width:39,height:39,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.42)'},metricLabel:{color:'rgba(5,12,25,.64)',fontSize:10,fontWeight:'900',letterSpacing:.45},metricValue:{color:'#07111F',fontSize:18,fontWeight:'900',marginTop:4},sectionHead:{marginTop:24,marginBottom:10},sectionTitleRow:{flexDirection:'row',alignItems:'center',gap:9},sectionIcon:{width:38,height:38,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(94,235,255,.08)'},sectionEyebrow:{color:dkd_palette.cyan,fontSize:10,fontWeight:'900',letterSpacing:1.25},sectionTitle:{color:dkd_palette.text,fontSize:22,fontWeight:'900',marginTop:3},sectionSub:{color:dkd_palette.soft,fontSize:13,lineHeight:18,fontWeight:'700',marginTop:6},bankCard:{borderRadius:25,padding:15,borderWidth:1,borderColor:'rgba(255,211,122,.12)'},bankHeader:{flexDirection:'row',alignItems:'center',gap:10},bankLogo:{width:48,height:48,borderRadius:16,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,211,122,.09)'},bankBrand:{color:dkd_palette.text,fontSize:17,fontWeight:'900'},bankSub:{color:dkd_palette.soft,fontSize:11.5,fontWeight:'700',marginTop:3},bankDivider:{height:1,backgroundColor:'rgba(255,255,255,.07)',marginVertical:14},bankLabel:{color:dkd_palette.muted,fontSize:10,fontWeight:'900',letterSpacing:.8,marginTop:8},bankValue:{color:dkd_palette.text,fontSize:15,fontWeight:'900',marginTop:4},ibanValue:{color:dkd_palette.cyan,lineHeight:21},scheduleCard:{borderRadius:25,padding:14,backgroundColor:'#0B1329',borderWidth:1,borderColor:'rgba(112,144,207,.13)'},cycleSwitch:{flexDirection:'row',gap:8},cycleButton:{flex:1,minHeight:52,borderRadius:16,flexDirection:'row',gap:7,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.035)',borderWidth:1,borderColor:'rgba(255,255,255,.07)'},cycleActive:{backgroundColor:dkd_palette.cyan,borderColor:dkd_palette.cyan},cycleText:{color:dkd_palette.soft,fontWeight:'900'},cycleTextActive:{color:'#07111F'},dayGrid:{flexDirection:'row',gap:6,marginTop:12},dayButton:{flex:1,minHeight:42,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.035)',borderWidth:1,borderColor:'rgba(255,255,255,.07)'},dayActive:{backgroundColor:dkd_palette.gold,borderColor:dkd_palette.gold},dayText:{color:dkd_palette.soft,fontSize:11.5,fontWeight:'900'},dayTextActive:{color:'#07111F'},fieldLabel:{color:dkd_palette.muted,fontSize:10,fontWeight:'900',letterSpacing:.8,marginTop:14,marginBottom:7},monthGrid:{flexDirection:'row',flexWrap:'wrap',gap:6},monthDay:{width:40,height:40,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.035)',borderWidth:1,borderColor:'rgba(255,255,255,.07)'},primaryPress:{borderRadius:16,overflow:'hidden',marginTop:13},primaryGradient:{minHeight:51,flexDirection:'row',gap:7,alignItems:'center',justifyContent:'center'},primaryText:{color:'#07111F',fontSize:13,fontWeight:'900'},paymentForm:{borderRadius:25,padding:14,borderWidth:1,borderColor:'rgba(112,144,207,.12)'},amountWrap:{minHeight:54,borderRadius:16,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,backgroundColor:'rgba(255,255,255,.035)',borderWidth:1,borderColor:'rgba(255,255,255,.07)'},amountInput:{flex:1,color:dkd_palette.text,fontSize:20,fontWeight:'900'},receiptPicker:{minHeight:72,borderRadius:18,marginTop:11,padding:11,flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'rgba(94,235,255,.05)',borderWidth:1,borderColor:'rgba(94,235,255,.13)'},receiptPickerSelected:{backgroundColor:'rgba(99,237,194,.05)',borderColor:'rgba(99,237,194,.15)'},receiptIcon:{width:45,height:45,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(94,235,255,.08)'},receiptIconSelected:{backgroundColor:'rgba(99,237,194,.08)'},receiptName:{color:dkd_palette.text,fontSize:13.5,fontWeight:'900'},receiptMeta:{color:dkd_palette.soft,fontSize:11,fontWeight:'700',marginTop:3},submitPress:{borderRadius:16,overflow:'hidden',marginTop:12},submitGradient:{minHeight:51,flexDirection:'row',gap:7,alignItems:'center',justifyContent:'center'},submitText:{color:'#07111F',fontSize:13,fontWeight:'900'},historyCard:{minHeight:68,borderRadius:20,padding:11,flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#0C142B',borderWidth:1,borderColor:'rgba(112,144,207,.12)',marginTop:8},historyIcon:{width:43,height:43,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(94,235,255,.07)'},historyAmount:{color:dkd_palette.text,fontSize:14.5,fontWeight:'900'},historyDate:{color:dkd_palette.soft,fontSize:10.5,fontWeight:'700',marginTop:3},statusPill:{minHeight:31,borderRadius:999,paddingHorizontal:9,flexDirection:'row',gap:4,alignItems:'center',borderWidth:1},statusText:{fontSize:10.5,fontWeight:'900'},ledgerCard:{minHeight:66,borderRadius:19,padding:11,flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#0C142B',borderWidth:1,borderColor:'rgba(112,144,207,.11)',marginTop:8},ledgerIcon:{width:41,height:41,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(166,107,255,.08)'},ledgerTitle:{color:dkd_palette.text,fontSize:13.5,fontWeight:'900'},ledgerMoney:{color:'#BBA4FF',fontSize:14,fontWeight:'900'},emptyCard:{alignItems:'center',padding:23,borderRadius:21,backgroundColor:'#0C142B',borderWidth:1,borderColor:'rgba(112,144,207,.11)'},emptyTitle:{color:dkd_palette.text,fontSize:14.5,fontWeight:'900',marginTop:8},emptyText:{color:dkd_palette.soft,fontSize:11.5,fontWeight:'700',textAlign:'center',marginTop:4},modalBackdrop:{flex:1,backgroundColor:'rgba(1,4,12,.84)',alignItems:'center',justifyContent:'center',padding:22},modalCard:{width:'100%',maxWidth:390,borderRadius:30,padding:21,borderWidth:1,borderColor:'rgba(255,255,255,.12)'},modalIcon:{width:64,height:64,borderRadius:21,alignSelf:'center',alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,211,122,.09)'},modalTitle:{color:'#FFF',fontSize:23,fontWeight:'900',textAlign:'center',marginTop:13},modalText:{color:'#AAB8D2',fontSize:14,lineHeight:20,fontWeight:'700',textAlign:'center',marginTop:8},modalAmount:{color:dkd_palette.gold,fontSize:27,fontWeight:'900',textAlign:'center',marginTop:11},modalPress:{borderRadius:16,overflow:'hidden',marginTop:15},modalGradient:{minHeight:51,alignItems:'center',justifyContent:'center'},modalButtonText:{color:'#07111F',fontWeight:'900'}
+});
