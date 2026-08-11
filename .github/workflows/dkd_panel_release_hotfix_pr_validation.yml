@@ -1,0 +1,27 @@
+name: DraBornGo Panel release hotfix validation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'App.js'
+      - 'src/**'
+      - 'package.json'
+      - 'app.json'
+      - '.github/workflows/dkd_panel_release_apk.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install release-hotfix dependencies
+        run: npm install --no-package-lock --ignore-scripts
+      - name: Validate Expo config
+        run: npx expo config --json > /tmp/dkd_panel_expo_config.json
+      - name: Android Metro export
+        run: npx expo export --platform android --output-dir dist-ci
