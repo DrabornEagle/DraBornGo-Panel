@@ -18,9 +18,11 @@
     "@rnmapbox/maps": "^10.3.0",
     "@supabase/supabase-js": "^2.98.0",
     "expo": "~57.0.12",
+    "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.0",
     "expo-dev-client": "~57.0.0",
     "expo-device": "~57.0.0",
+    "expo-document-picker": "~57.0.1",
     "expo-font": "~57.0.1",
     "expo-haptics": "~57.0.1",
     "expo-linear-gradient": "~57.0.1",
@@ -32,8 +34,7 @@
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
-    "react-native-url-polyfill": "^3.0.0",
-    "expo-document-picker": "~57.0.1"
+    "react-native-url-polyfill": "^3.0.0"
   },
   "engines": {
     "node": ">=22.13.0"
