@@ -6,6 +6,8 @@
   "scripts": {
     "start": "expo start --go --lan --clear",
     "start:tunnel": "expo start --go --tunnel --clear",
+    "start:dev": "expo start --dev-client --lan --clear",
+    "start:dev:tunnel": "expo start --dev-client --tunnel --clear",
     "android": "expo start --android",
     "doctor": "npx expo-doctor@latest",
     "expo:fix": "npx expo install --fix"
@@ -13,9 +15,11 @@
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@rnmapbox/maps": "^10.3.0",
     "@supabase/supabase-js": "^2.98.0",
     "expo": "~57.0.12",
     "expo-constants": "~57.0.0",
+    "expo-dev-client": "~57.0.0",
     "expo-device": "~57.0.0",
     "expo-font": "~57.0.1",
     "expo-haptics": "~57.0.1",
