@@ -1,3 +1,4 @@
+// DraBornGo Panel v0.0.2 release hotfix validated through PR CI.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
