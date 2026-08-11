@@ -2,6 +2,7 @@
   "expo": {
     "name": "DraBornGo Panel",
     "slug": "draborngo-panel",
+    "scheme": "draborngo-panel",
     "version": "0.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -19,6 +20,12 @@
         {
           "defaultChannel": "draborngo-panel",
           "color": "#69E9FF"
+        }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsVersion": "11.20.1"
         }
       ]
     ],
