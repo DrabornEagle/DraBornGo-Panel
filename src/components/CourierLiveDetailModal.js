@@ -8,7 +8,7 @@ import { RacingMotorcycle } from './RacingMotorcycle';
 import { supabase } from '../lib/supabase';
 import { dkd_generated_public_env_value } from '../lib/dkd_public_env.generated';
 
-const dkd_mapbox_token_value = String(dkd_generated_public_env_value?.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim();
+const dkd_mapbox_token_value = String(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || dkd_generated_public_env_value?.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim();
 if (dkd_mapbox_token_value.startsWith('pk.')) { try { MapboxGL.setAccessToken(dkd_mapbox_token_value); } catch {} }
 
 function dkd_number_or_null(dkd_value){const dkd_number=Number(dkd_value);return Number.isFinite(dkd_number)?dkd_number:null;}
@@ -16,7 +16,6 @@ function dkd_coordinate_value(dkd_lat_value,dkd_lng_value){const lat=dkd_number_
 function dkd_status_tone(dkd_status){const value=String(dkd_status||'').toLowerCase();if(['completed','delivered'].includes(value))return'green';if(['cancelled','canceled'].includes(value))return'red';if(['accepted','picked_up','to_customer','delivering'].includes(value))return'blue';return'yellow';}
 function dkd_status_label(dkd_status){const value=String(dkd_status||'').toLowerCase();if(value==='accepted')return'KABUL EDİLDİ';if(['completed','delivered'].includes(value))return'TESLİM EDİLDİ';if(['picked_up','to_customer','delivering'].includes(value))return'TESLİMATTA';if(['cancelled','canceled'].includes(value))return'İPTAL';return String(dkd_status||'BEKLİYOR').toUpperCase();}
 function dkd_prop_coordinate(dkd_order,dkd_courier,dkd_axis){const candidates=dkd_axis==='lat'?[dkd_order?.dkd_courier_lat,dkd_courier?.dkd_live_lat,dkd_courier?.dkd_courier_lat,dkd_courier?.dkd_lat,dkd_courier?.lat]:[dkd_order?.dkd_courier_lng,dkd_courier?.dkd_live_lng,dkd_courier?.dkd_courier_lng,dkd_courier?.dkd_lng,dkd_courier?.lng];for(const candidate of candidates){const number=dkd_number_or_null(candidate);if(number!=null)return number;}return null;}
-
 function DkdMarker({icon,tone='cyan'}){return <View style={[styles.marker,tone==='green'&&styles.markerGreen]}><MaterialCommunityIcons name={icon} size={21} color="#06131D"/></View>;}
 
 export default function CourierLiveDetailModal({visible,courier,order,onClose}){
@@ -24,7 +23,7 @@ export default function CourierLiveDetailModal({visible,courier,order,onClose}){
   const dkd_courier_user_id_value=String(courier?.dkd_courier_user_id||order?.dkd_courier_user_id||'').trim();
   const dkd_fetch_live_value=useCallback(async()=>{if(!visible||!dkd_courier_user_id_value)return;dkd_set_loading_value(true);try{const{data,error}=await supabase.from('dkd_courier_live_locations').select('courier_user_id,lat,lng,updated_at').eq('courier_user_id',dkd_courier_user_id_value).maybeSingle();if(error){dkd_set_error_value(String(error.message||error));return;}dkd_set_error_value('');if(data)dkd_set_live_value(data);}catch(error){dkd_set_error_value(String(error?.message||error));}finally{dkd_set_loading_value(false);}},[visible,dkd_courier_user_id_value]);
   useEffect(()=>{if(visible)dkd_fetch_live_value();else{dkd_set_live_value(null);dkd_set_error_value('');}},[visible,dkd_fetch_live_value]);
-  useEffect(()=>{if(!visible||!dkd_courier_user_id_value)return undefined;let dkd_channel_value=null;try{dkd_channel_value=supabase.channel(`dkd-panel-courier-live-${dkd_courier_user_id_value}-${Date.now()}`).on('postgres_changes',{event:'*',schema:'public',table:'dkd_courier_live_locations',filter:`courier_user_id=eq.${dkd_courier_user_id_value}`},(payload)=>{if(payload?.new)dkd_set_live_value(payload.new);}).subscribe();}catch(error){dkd_set_error_value(String(error?.message||error));}return()=>{if(dkd_channel_value){try{supabase.removeChannel(dkd_channel_value);}catch{}}};},[visible,dkd_courier_user_id_value]);
+  useEffect(()=>{if(!visible||!dkd_courier_user_id_value)return undefined;let channel=null;try{channel=supabase.channel(`dkd-panel-courier-live-${dkd_courier_user_id_value}-${Date.now()}`).on('postgres_changes',{event:'*',schema:'public',table:'dkd_courier_live_locations',filter:`courier_user_id=eq.${dkd_courier_user_id_value}`},(payload)=>{if(payload?.new)dkd_set_live_value(payload.new);}).subscribe();}catch(error){dkd_set_error_value(String(error?.message||error));}return()=>{if(channel){try{supabase.removeChannel(channel);}catch{}}};},[visible,dkd_courier_user_id_value]);
   useEffect(()=>{if(!visible)return undefined;const timer=setInterval(dkd_fetch_live_value,5000);return()=>clearInterval(timer);},[visible,dkd_fetch_live_value]);
 
   const dkd_courier_point_value=useMemo(()=>dkd_coordinate_value(dkd_live_value?.lat??dkd_prop_coordinate(order,courier,'lat'),dkd_live_value?.lng??dkd_prop_coordinate(order,courier,'lng')),[dkd_live_value,order,courier]);
