@@ -1,136 +1,73 @@
-const dkd_cors_headers_value = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-dkd-webhook-secret',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const dkd_cors_headers_value={
+  'Access-Control-Allow-Origin':'*',
+  'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type, x-dkd-webhook-secret',
+  'Access-Control-Allow-Methods':'POST, OPTIONS',
 };
+function dkd_text_value(dkd_value:unknown){return String(dkd_value??'').trim();}
+function dkd_object_value(dkd_value:unknown):Record<string,unknown>{return dkd_value&&typeof dkd_value==='object'&&!Array.isArray(dkd_value)?dkd_value as Record<string,unknown>:{};}
+function dkd_array_value(dkd_value:unknown):Record<string,unknown>[] {return Array.isArray(dkd_value)?dkd_value.map(dkd_object_value):[];}
+function dkd_string_data_value(dkd_value:Record<string,unknown>){return Object.fromEntries(Object.entries(dkd_value).map(([dkd_key_value,dkd_item_value])=>[dkd_key_value,typeof dkd_item_value==='string'?dkd_item_value:JSON.stringify(dkd_item_value)]));}
 
-function dkd_text_value(dkd_value: unknown): string { return String(dkd_value ?? '').trim(); }
-function dkd_object_value(dkd_value: unknown): Record<string, unknown> { return dkd_value && typeof dkd_value === 'object' && !Array.isArray(dkd_value) ? dkd_value as Record<string, unknown> : {}; }
-function dkd_array_value(dkd_value: unknown): Record<string, unknown>[] { return Array.isArray(dkd_value) ? dkd_value.map(dkd_object_value) : []; }
-
-async function dkd_supabase_get_value(dkd_path_value: string): Promise<unknown> {
-  const dkd_url_value = dkd_text_value(Deno.env.get('SUPABASE_URL'));
-  const dkd_key_value = dkd_text_value(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-  if (!dkd_url_value || !dkd_key_value) throw new Error('dkd_missing_supabase_edge_env');
-  const dkd_response_value = await fetch(`${dkd_url_value}${dkd_path_value}`, {
-    headers: { apikey: dkd_key_value, authorization: `Bearer ${dkd_key_value}` },
-  });
-  const dkd_text_response_value = await dkd_response_value.text();
-  if (!dkd_response_value.ok) throw new Error(dkd_text_response_value || `dkd_supabase_http_${dkd_response_value.status}`);
-  return dkd_text_response_value ? JSON.parse(dkd_text_response_value) : [];
+async function dkd_supabase_request_value(dkd_path_value:string,dkd_options_value:RequestInit={}){
+  const dkd_url_value=dkd_text_value(Deno.env.get('SUPABASE_URL'));
+  const dkd_key_value=dkd_text_value(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+  if(!dkd_url_value||!dkd_key_value)throw new Error('dkd_missing_supabase_edge_env');
+  const dkd_response_value=await fetch(`${dkd_url_value}${dkd_path_value}`,{...dkd_options_value,headers:{apikey:dkd_key_value,authorization:`Bearer ${dkd_key_value}`,'content-type':'application/json',...(dkd_options_value.headers||{})}});
+  const dkd_text_response_value=await dkd_response_value.text();
+  if(!dkd_response_value.ok)throw new Error(dkd_text_response_value||`dkd_supabase_http_${dkd_response_value.status}`);
+  return dkd_text_response_value?JSON.parse(dkd_text_response_value):null;
 }
-
-async function dkd_expected_webhook_secret_value(): Promise<string> {
-  const dkd_rows_value = dkd_array_value(await dkd_supabase_get_value('/rest/v1/dkd_internal_webhook_config?select=dkd_secret&dkd_key=eq.courier_order_alert&limit=1'));
-  return dkd_text_value(dkd_rows_value[0]?.dkd_secret);
+async function dkd_expected_webhook_secret_value(){const dkd_rows_value=dkd_array_value(await dkd_supabase_request_value('/rest/v1/dkd_internal_webhook_config?select=dkd_secret&dkd_key=eq.courier_order_alert&limit=1'));return dkd_text_value(dkd_rows_value[0]?.dkd_secret);}
+async function dkd_verified_job_value(dkd_payload_value:Record<string,unknown>){const dkd_record_value=dkd_object_value(dkd_payload_value.record||dkd_payload_value.new||dkd_payload_value.data||dkd_payload_value);const dkd_job_id_value=Number(dkd_record_value.id||dkd_record_value.job_id||dkd_record_value.dkd_job_id||0);if(!Number.isFinite(dkd_job_id_value)||dkd_job_id_value<=0)return null;const dkd_rows_value=dkd_array_value(await dkd_supabase_request_value(`/rest/v1/dkd_courier_jobs?select=id,title,product_title,status,pickup_status,is_active,assigned_user_id,dkd_business_id,dkd_order_ref_text,job_type&id=eq.${encodeURIComponent(String(dkd_job_id_value))}&limit=1`));return dkd_rows_value[0]||null;}
+function dkd_job_event_value(dkd_job_value:Record<string,unknown>):'new_order'|'accepted'|'picked_up'|'delivered'|''{
+  const dkd_status_value=dkd_text_value(dkd_job_value.status).toLowerCase();const dkd_pickup_status_value=dkd_text_value(dkd_job_value.pickup_status).toLowerCase();
+  if(['completed','delivered','done','finished'].includes(dkd_status_value)||['delivered','completed'].includes(dkd_pickup_status_value)||dkd_job_value.is_active===false)return'delivered';
+  if(['picked_up','to_customer','delivering'].includes(dkd_status_value)||dkd_pickup_status_value==='picked_up')return'picked_up';
+  if(['accepted','assigned','to_pickup'].includes(dkd_status_value))return'accepted';
+  if(['open','ready','published','pending','courier_pool','new','waiting'].includes(dkd_status_value)&&!dkd_text_value(dkd_job_value.assigned_user_id)&&dkd_job_value.is_active!==false)return'new_order';
+  return'';
 }
+async function dkd_business_target_value(dkd_business_id_value:string){if(!dkd_business_id_value)return{ownerId:'',courierIds:[] as string[]};const[dkd_business_rows_value,dkd_member_rows_value]=await Promise.all([dkd_supabase_request_value(`/rest/v1/dkd_businesses?select=dkd_owner_user_id&dkd_id=eq.${encodeURIComponent(dkd_business_id_value)}&dkd_is_active=is.true&limit=1`),dkd_supabase_request_value(`/rest/v1/dkd_business_couriers?select=dkd_courier_user_id&dkd_business_id=eq.${encodeURIComponent(dkd_business_id_value)}&dkd_is_active=is.true`)]);const dkd_owner_id_value=dkd_text_value(dkd_array_value(dkd_business_rows_value)[0]?.dkd_owner_user_id);const dkd_courier_ids_value=[...new Set(dkd_array_value(dkd_member_rows_value).map((dkd_row_value)=>dkd_text_value(dkd_row_value.dkd_courier_user_id)).filter(Boolean))];return{ownerId:dkd_owner_id_value,courierIds:dkd_courier_ids_value};}
+async function dkd_expo_token_rows_value(dkd_user_ids_value:string[]){const dkd_ids_value=[...new Set(dkd_user_ids_value.filter(Boolean))];if(!dkd_ids_value.length)return[];const dkd_filter_value=dkd_ids_value.map((dkd_value)=>`\"${dkd_value}\"`).join(',');return dkd_array_value(await dkd_supabase_request_value(`/rest/v1/dkd_push_tokens?select=user_id,expo_push_token,token,app_mode,last_seen_at&is_active=is.true&user_id=in.(${encodeURIComponent(dkd_filter_value)})&order=last_seen_at.desc&limit=100`));}
+async function dkd_native_token_rows_value(dkd_user_ids_value:string[]){const dkd_ids_value=[...new Set(dkd_user_ids_value.filter(Boolean))];if(!dkd_ids_value.length)return[];const dkd_filter_value=dkd_ids_value.map((dkd_value)=>`\"${dkd_value}\"`).join(',');return dkd_array_value(await dkd_supabase_request_value(`/rest/v1/dkd_native_push_tokens?select=dkd_user_id,dkd_token,dkd_app_mode,dkd_last_seen_at&dkd_is_active=is.true&dkd_user_id=in.(${encodeURIComponent(dkd_filter_value)})&order=dkd_last_seen_at.desc&limit=100`));}
+function dkd_is_panel_mode_value(dkd_value:unknown){return dkd_text_value(dkd_value).toLowerCase().includes('panel');}
+function dkd_latest_expo_token_value(dkd_rows_value:Record<string,unknown>[],dkd_user_id_value:string,dkd_panel_value:boolean){const dkd_row_value=dkd_rows_value.find((dkd_item_value)=>dkd_text_value(dkd_item_value.user_id)===dkd_user_id_value&&dkd_is_panel_mode_value(dkd_item_value.app_mode)===dkd_panel_value);const dkd_token_value=dkd_text_value(dkd_row_value?.expo_push_token||dkd_row_value?.token);return dkd_token_value.startsWith('ExponentPushToken')?dkd_token_value:'';}
+function dkd_latest_native_token_value(dkd_rows_value:Record<string,unknown>[],dkd_user_id_value:string,dkd_panel_value:boolean){const dkd_row_value=dkd_rows_value.find((dkd_item_value)=>dkd_text_value(dkd_item_value.dkd_user_id)===dkd_user_id_value&&dkd_is_panel_mode_value(dkd_item_value.dkd_app_mode)===dkd_panel_value);return dkd_text_value(dkd_row_value?.dkd_token);}
 
-async function dkd_verified_job_value(dkd_payload_value: Record<string, unknown>): Promise<Record<string, unknown> | null> {
-  const dkd_record_value = dkd_object_value(dkd_payload_value.record || dkd_payload_value.new || dkd_payload_value.data || dkd_payload_value);
-  const dkd_job_id_value = Number(dkd_record_value.id || dkd_record_value.job_id || dkd_record_value.dkd_job_id || 0);
-  if (!Number.isFinite(dkd_job_id_value) || dkd_job_id_value <= 0) return null;
-  const dkd_rows_value = dkd_array_value(await dkd_supabase_get_value(`/rest/v1/dkd_courier_jobs?select=id,title,product_title,status,pickup_status,is_active,assigned_user_id,dkd_business_id,dkd_order_ref_text,job_type&id=eq.${encodeURIComponent(String(dkd_job_id_value))}&limit=1`));
-  return dkd_rows_value[0] || null;
-}
+function dkd_base64url_value(dkd_value:Uint8Array|string){const dkd_bytes_value=typeof dkd_value==='string'?new TextEncoder().encode(dkd_value):dkd_value;let dkd_binary_value='';for(const dkd_byte_value of dkd_bytes_value)dkd_binary_value+=String.fromCharCode(dkd_byte_value);return btoa(dkd_binary_value).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'');}
+function dkd_pem_buffer_value(dkd_pem_value:string){const dkd_body_value=dkd_pem_value.replace('-----BEGIN PRIVATE KEY-----','').replace('-----END PRIVATE KEY-----','').replace(/\s/g,'');const dkd_binary_value=atob(dkd_body_value);const dkd_bytes_value=new Uint8Array(dkd_binary_value.length);for(let dkd_index_value=0;dkd_index_value<dkd_binary_value.length;dkd_index_value+=1)dkd_bytes_value[dkd_index_value]=dkd_binary_value.charCodeAt(dkd_index_value);return dkd_bytes_value.buffer;}
+type DkdFirebaseAccount={project_id:string;private_key:string;client_email:string;token_uri?:string};
+async function dkd_google_access_token_value(dkd_account_value:DkdFirebaseAccount){const dkd_now_value=Math.floor(Date.now()/1000);const dkd_header_value=dkd_base64url_value(JSON.stringify({alg:'RS256',typ:'JWT'}));const dkd_claim_value=dkd_base64url_value(JSON.stringify({iss:dkd_account_value.client_email,scope:'https://www.googleapis.com/auth/firebase.messaging',aud:dkd_account_value.token_uri||'https://oauth2.googleapis.com/token',iat:dkd_now_value,exp:dkd_now_value+3500}));const dkd_unsigned_value=`${dkd_header_value}.${dkd_claim_value}`;const dkd_key_value=await crypto.subtle.importKey('pkcs8',dkd_pem_buffer_value(dkd_account_value.private_key),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);const dkd_signature_value=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',dkd_key_value,new TextEncoder().encode(dkd_unsigned_value));const dkd_assertion_value=`${dkd_unsigned_value}.${dkd_base64url_value(new Uint8Array(dkd_signature_value))}`;const dkd_response_value=await fetch(dkd_account_value.token_uri||'https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:dkd_assertion_value})});const dkd_payload_value=await dkd_response_value.json();if(!dkd_response_value.ok||!dkd_payload_value.access_token)throw new Error(`dkd_firebase_oauth_failed:${JSON.stringify(dkd_payload_value)}`);return String(dkd_payload_value.access_token);}
+async function dkd_firebase_account_value():Promise<DkdFirebaseAccount|null>{try{const dkd_raw_value=await dkd_supabase_request_value('/rest/v1/rpc/dkd_get_draborngo_firebase_service_account_json',{method:'POST',body:'{}'});const dkd_text_account_value=typeof dkd_raw_value==='string'?dkd_raw_value:'';if(!dkd_text_account_value)return null;const dkd_account_value=JSON.parse(dkd_text_account_value) as DkdFirebaseAccount;if(dkd_account_value.project_id!=='draborngo'||!dkd_account_value.client_email||!dkd_account_value.private_key)return null;return dkd_account_value;}catch{return null;}}
+async function dkd_send_fcm_value(dkd_account_value:DkdFirebaseAccount,dkd_access_token_value:string,dkd_token_value:string,dkd_title_value:string,dkd_body_value:string,dkd_channel_value:string,dkd_data_value:Record<string,unknown>){const dkd_response_value=await fetch(`https://fcm.googleapis.com/v1/projects/${dkd_account_value.project_id}/messages:send`,{method:'POST',headers:{authorization:`Bearer ${dkd_access_token_value}`,'content-type':'application/json'},body:JSON.stringify({message:{token:dkd_token_value,notification:{title:dkd_title_value,body:dkd_body_value},data:dkd_string_data_value(dkd_data_value),android:{priority:'high',notification:{channel_id:dkd_channel_value,visibility:'PUBLIC',notification_priority:'PRIORITY_MAX'}}}})});const dkd_payload_value=await dkd_response_value.json().catch(()=>({}));return{dkd_ok_value:dkd_response_value.ok,dkd_payload_value};}
+async function dkd_send_expo_value(dkd_token_value:string,dkd_title_value:string,dkd_body_value:string,dkd_channel_value:string,dkd_data_value:Record<string,unknown>){if(!dkd_token_value)return{dkd_ok_value:false,dkd_reason_value:'expo_token_missing'};const dkd_response_value=await fetch('https://exp.host/--/api/v2/push/send',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({to:dkd_token_value,title:dkd_title_value,body:dkd_body_value,channelId:dkd_channel_value,priority:'high',data:dkd_data_value})});const dkd_payload_value=await dkd_response_value.json().catch(()=>({}));const dkd_ticket_value=Array.isArray(dkd_payload_value?.data)?dkd_payload_value.data[0]:dkd_payload_value?.data;return{dkd_ok_value:dkd_response_value.ok&&dkd_ticket_value?.status!=='error',dkd_payload_value};}
 
-function dkd_job_event_value(dkd_job_value: Record<string, unknown>): 'new_order' | 'accepted' | 'delivered' | '' {
-  const dkd_status_value = dkd_text_value(dkd_job_value.status).toLowerCase();
-  const dkd_pickup_status_value = dkd_text_value(dkd_job_value.pickup_status).toLowerCase();
-  if (['completed','delivered','done','finished'].includes(dkd_status_value) || ['delivered','completed'].includes(dkd_pickup_status_value) || dkd_job_value.is_active === false) return 'delivered';
-  if (['accepted','assigned','to_pickup'].includes(dkd_status_value)) return 'accepted';
-  if (['open','ready','published','pending','courier_pool','new','waiting'].includes(dkd_status_value) && !dkd_text_value(dkd_job_value.assigned_user_id) && dkd_job_value.is_active !== false) return 'new_order';
-  return '';
-}
-
-async function dkd_business_target_value(dkd_business_id_value: string): Promise<{ ownerId: string; courierIds: string[] }> {
-  if (!dkd_business_id_value) return { ownerId: '', courierIds: [] };
-  const [dkd_business_rows_value, dkd_member_rows_value] = await Promise.all([
-    dkd_supabase_get_value(`/rest/v1/dkd_businesses?select=dkd_owner_user_id&dkd_id=eq.${encodeURIComponent(dkd_business_id_value)}&dkd_is_active=is.true&limit=1`),
-    dkd_supabase_get_value(`/rest/v1/dkd_business_couriers?select=dkd_courier_user_id&dkd_business_id=eq.${encodeURIComponent(dkd_business_id_value)}&dkd_is_active=is.true`),
-  ]);
-  const dkd_owner_id_value = dkd_text_value(dkd_array_value(dkd_business_rows_value)[0]?.dkd_owner_user_id);
-  const dkd_courier_ids_value = [...new Set(dkd_array_value(dkd_member_rows_value).map((dkd_row_value) => dkd_text_value(dkd_row_value.dkd_courier_user_id)).filter(Boolean))];
-  return { ownerId: dkd_owner_id_value, courierIds: dkd_courier_ids_value };
-}
-
-async function dkd_token_rows_value(dkd_user_ids_value: string[]): Promise<Record<string, unknown>[]> {
-  const dkd_ids_value = [...new Set(dkd_user_ids_value.map(dkd_text_value).filter(Boolean))];
-  if (!dkd_ids_value.length) return [];
-  const dkd_filter_value = dkd_ids_value.map((dkd_value) => `\"${dkd_value}\"`).join(',');
-  return dkd_array_value(await dkd_supabase_get_value(`/rest/v1/dkd_push_tokens?select=user_id,expo_push_token,token,app_mode,is_active,last_seen_at&is_active=is.true&user_id=in.(${encodeURIComponent(dkd_filter_value)})&order=last_seen_at.desc&limit=100`));
-}
-
-function dkd_token_text_value(dkd_row_value: Record<string, unknown>): string { return dkd_text_value(dkd_row_value.expo_push_token || dkd_row_value.token); }
-function dkd_is_panel_token_value(dkd_row_value: Record<string, unknown>): boolean { return dkd_text_value(dkd_row_value.app_mode).toLowerCase().includes('panel'); }
-
-function dkd_latest_tokens_value(dkd_rows_value: Record<string, unknown>[]): Record<string, unknown>[] {
-  const dkd_seen_value = new Set<string>();
-  const dkd_output_value: Record<string, unknown>[] = [];
-  for (const dkd_row_value of dkd_rows_value) {
-    const dkd_token_value = dkd_token_text_value(dkd_row_value);
-    if (!dkd_token_value.startsWith('ExponentPushToken')) continue;
-    const dkd_key_value = `${dkd_text_value(dkd_row_value.user_id)}:${dkd_is_panel_token_value(dkd_row_value) ? 'panel' : 'core'}`;
-    if (dkd_seen_value.has(dkd_key_value)) continue;
-    dkd_seen_value.add(dkd_key_value);
-    dkd_output_value.push(dkd_row_value);
-  }
-  return dkd_output_value;
-}
-
-async function dkd_send_messages_value(dkd_messages_value: Record<string, unknown>[]): Promise<unknown> {
-  if (!dkd_messages_value.length) return [];
-  const dkd_response_value = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify(dkd_messages_value),
-  });
-  const dkd_response_text_value = await dkd_response_value.text();
-  if (!dkd_response_value.ok) throw new Error(dkd_response_text_value || `dkd_expo_push_http_${dkd_response_value.status}`);
-  try { return JSON.parse(dkd_response_text_value); } catch { return dkd_response_text_value; }
-}
-
-Deno.serve(async (dkd_request_value: Request) => {
-  if (dkd_request_value.method === 'OPTIONS') return new Response('ok', { headers: dkd_cors_headers_value });
-  if (dkd_request_value.method !== 'POST') return new Response(JSON.stringify({ ok: false, reason: 'method_not_allowed' }), { status: 405, headers: { ...dkd_cors_headers_value, 'content-type': 'application/json' } });
-  try {
-    const dkd_expected_secret_value = await dkd_expected_webhook_secret_value();
-    const dkd_received_secret_value = dkd_text_value(dkd_request_value.headers.get('x-dkd-webhook-secret'));
-    if (!dkd_expected_secret_value || dkd_received_secret_value !== dkd_expected_secret_value) return new Response(JSON.stringify({ ok: false, reason: 'unauthorized' }), { status: 401, headers: { ...dkd_cors_headers_value, 'content-type': 'application/json' } });
-
-    const dkd_payload_value = dkd_object_value(await dkd_request_value.json().catch(() => ({})));
-    const dkd_job_value = await dkd_verified_job_value(dkd_payload_value);
-    if (!dkd_job_value) return new Response(JSON.stringify({ ok: true, ignored: 'job_not_found' }), { headers: { ...dkd_cors_headers_value, 'content-type': 'application/json' } });
-
-    const dkd_derived_event_value = dkd_job_event_value(dkd_job_value);
-    const dkd_requested_event_value = dkd_text_value(dkd_payload_value.event).toLowerCase();
-    if (!dkd_derived_event_value || (dkd_requested_event_value && dkd_requested_event_value !== dkd_derived_event_value)) return new Response(JSON.stringify({ ok: true, ignored: 'state_not_notifiable', dkd_derived_event_value }), { headers: { ...dkd_cors_headers_value, 'content-type': 'application/json' } });
-
-    const dkd_business_id_value = dkd_text_value(dkd_job_value.dkd_business_id);
-    const dkd_assigned_user_id_value = dkd_text_value(dkd_job_value.assigned_user_id);
-    const dkd_targets_value = await dkd_business_target_value(dkd_business_id_value);
-    const dkd_courier_user_ids_value = dkd_derived_event_value === 'new_order' ? (dkd_assigned_user_id_value ? [dkd_assigned_user_id_value] : dkd_targets_value.courierIds) : [];
-    const dkd_target_user_ids_value = [...new Set([...dkd_courier_user_ids_value, dkd_targets_value.ownerId].filter(Boolean))];
-    const dkd_token_rows = dkd_latest_tokens_value(await dkd_token_rows_value(dkd_target_user_ids_value));
-    const dkd_title_value = dkd_text_value(dkd_job_value.title || dkd_job_value.product_title) || 'Teslimat görevi';
-    const dkd_order_ref_value = dkd_text_value(dkd_job_value.dkd_order_ref_text || dkd_job_value.id);
-    const dkd_job_id_value = Number(dkd_job_value.id);
-    const dkd_messages_value: Record<string, unknown>[] = [];
-
-    for (const dkd_row_value of dkd_token_rows) {
-      const dkd_token_value = dkd_token_text_value(dkd_row_value);
-      const dkd_user_id_value = dkd_text_value(dkd_row_value.user_id);
-      const dkd_panel_token_value = dkd_is_panel_token_value(dkd_row_value);
-      if (dkd_derived_event_value === 'new_order' && dkd_courier_user_ids_value.includes(dkd_user_id_value) && !dkd_panel_token_value) dkd_messages_value.push({ to: dkd_token_value, title: 'Yeni Kurye Görevi', body: `#${dkd_order_ref_value} • ${dkd_title_value}`, channelId: 'draborngo-core', priority: 'high', data: { route: 'courier', screen: 'courier', jobId: dkd_job_id_value, dkd_business_id: dkd_business_id_value, dkd_event_key: 'new_order' } });
-      if (dkd_user_id_value === dkd_targets_value.ownerId && dkd_panel_token_value) {
-        if (dkd_derived_event_value === 'new_order') dkd_messages_value.push({ to: dkd_token_value, title: 'Yeni Sipariş Geldi', body: `#${dkd_order_ref_value} • ${dkd_title_value}`, channelId: 'draborngo-panel', priority: 'high', data: { route: 'orders', screen: 'orders', dkd_job_id: dkd_job_id_value, dkd_event_key: 'new_order' } });
-        else if (dkd_derived_event_value === 'accepted') dkd_messages_value.push({ to: dkd_token_value, title: 'Kurye Görevi Kabul Etti', body: `#${dkd_order_ref_value} • ${dkd_title_value} kurye tarafından kabul edildi.`, channelId: 'draborngo-panel', priority: 'high', data: { route: 'dashboard', screen: 'dashboard', dkd_job_id: dkd_job_id_value, dkd_event_key: 'accepted' } });
-        else if (dkd_derived_event_value === 'delivered') dkd_messages_value.push({ to: dkd_token_value, title: 'Sipariş Teslim Edildi', body: `#${dkd_order_ref_value} • ${dkd_title_value} teslimatı tamamlandı.`, channelId: 'draborngo-panel', priority: 'high', data: { route: 'orders', screen: 'orders', dkd_job_id: dkd_job_id_value, dkd_event_key: 'delivered' } });
-      }
+type DkdTarget={userId:string;panel:boolean;title:string;body:string;channel:string;data:Record<string,unknown>};
+Deno.serve(async(dkd_request_value:Request)=>{
+  if(dkd_request_value.method==='OPTIONS')return new Response('ok',{headers:dkd_cors_headers_value});
+  if(dkd_request_value.method!=='POST')return new Response(JSON.stringify({ok:false,reason:'method_not_allowed'}),{status:405,headers:{...dkd_cors_headers_value,'content-type':'application/json'}});
+  try{
+    const dkd_expected_secret_value=await dkd_expected_webhook_secret_value();const dkd_received_secret_value=dkd_text_value(dkd_request_value.headers.get('x-dkd-webhook-secret'));if(!dkd_expected_secret_value||dkd_received_secret_value!==dkd_expected_secret_value)return new Response(JSON.stringify({ok:false,reason:'unauthorized'}),{status:401,headers:{...dkd_cors_headers_value,'content-type':'application/json'}});
+    const dkd_payload_value=dkd_object_value(await dkd_request_value.json().catch(()=>({})));const dkd_job_value=await dkd_verified_job_value(dkd_payload_value);if(!dkd_job_value)return new Response(JSON.stringify({ok:true,ignored:'job_not_found'}),{headers:{...dkd_cors_headers_value,'content-type':'application/json'}});
+    const dkd_derived_event_value=dkd_job_event_value(dkd_job_value);const dkd_requested_event_value=dkd_text_value(dkd_payload_value.event).toLowerCase();if(!dkd_derived_event_value||(dkd_requested_event_value&&dkd_requested_event_value!==dkd_derived_event_value))return new Response(JSON.stringify({ok:true,ignored:'state_not_notifiable',dkd_derived_event_value}),{headers:{...dkd_cors_headers_value,'content-type':'application/json'}});
+    const dkd_business_id_value=dkd_text_value(dkd_job_value.dkd_business_id);const dkd_targets_value=await dkd_business_target_value(dkd_business_id_value);const dkd_title_value=dkd_text_value(dkd_job_value.title||dkd_job_value.product_title)||'Teslimat görevi';const dkd_order_ref_value=dkd_text_value(dkd_job_value.dkd_order_ref_text||dkd_job_value.id);const dkd_job_id_value=Number(dkd_job_value.id);const dkd_target_values:DkdTarget[]=[];
+    const dkd_base_data_value={dkd_job_id:dkd_job_id_value,dkd_business_id:dkd_business_id_value,dkd_event_key:dkd_derived_event_value};
+    if(dkd_derived_event_value==='new_order'){
+      for(const dkd_courier_id_value of dkd_targets_value.courierIds)dkd_target_values.push({userId:dkd_courier_id_value,panel:false,title:'Yeni Kurye Görevi',body:`#${dkd_order_ref_value} • ${dkd_title_value}`,channel:'draborngo-core',data:{...dkd_base_data_value,route:'courier',screen:'courier',jobId:dkd_job_id_value}});
+      if(dkd_targets_value.ownerId)dkd_target_values.push({userId:dkd_targets_value.ownerId,panel:true,title:'Yeni Sipariş Geldi',body:`#${dkd_order_ref_value} • ${dkd_title_value}`,channel:'draborngo-panel',data:{...dkd_base_data_value,route:'orders',screen:'orders'}});
+    }else if(dkd_targets_value.ownerId){
+      if(dkd_derived_event_value==='accepted')dkd_target_values.push({userId:dkd_targets_value.ownerId,panel:true,title:'Kurye Görevi Kabul Etti',body:`#${dkd_order_ref_value} • ${dkd_title_value} kurye tarafından kabul edildi.`,channel:'draborngo-panel',data:{...dkd_base_data_value,route:'dashboard',screen:'dashboard'}});
+      if(dkd_derived_event_value==='picked_up')dkd_target_values.push({userId:dkd_targets_value.ownerId,panel:true,title:'Kurye Paketi Teslim Aldı',body:`#${dkd_order_ref_value} • ${dkd_title_value} teslim alındı ve müşteri rotası başladı.`,channel:'draborngo-panel',data:{...dkd_base_data_value,route:'orders',screen:'orders'}});
+      if(dkd_derived_event_value==='delivered')dkd_target_values.push({userId:dkd_targets_value.ownerId,panel:true,title:'Sipariş Teslim Edildi',body:`#${dkd_order_ref_value} • ${dkd_title_value} teslimatı tamamlandı.`,channel:'draborngo-panel',data:{...dkd_base_data_value,route:'orders',screen:'orders'}});
     }
-
-    const dkd_push_result_value = await dkd_send_messages_value(dkd_messages_value);
-    return new Response(JSON.stringify({ ok: true, dkd_event_value: dkd_derived_event_value, dkd_sent_count_value: dkd_messages_value.length, dkd_push_result_value }), { headers: { ...dkd_cors_headers_value, 'content-type': 'application/json' } });
-  } catch (dkd_error_value) {
-    return new Response(JSON.stringify({ ok: false, dkd_error_value: dkd_error_value instanceof Error ? dkd_error_value.message : String(dkd_error_value) }), { status: 200, headers: { ...dkd_cors_headers_value, 'content-type': 'application/json' } });
-  }
+    const dkd_user_ids_value=[...new Set(dkd_target_values.map((dkd_target_value)=>dkd_target_value.userId).filter(Boolean))];const[dkd_expo_rows_value,dkd_native_rows_value,dkd_firebase_account_data_value]=await Promise.all([dkd_expo_token_rows_value(dkd_user_ids_value),dkd_native_token_rows_value(dkd_user_ids_value),dkd_firebase_account_value()]);let dkd_firebase_access_token_value='';if(dkd_firebase_account_data_value)try{dkd_firebase_access_token_value=await dkd_google_access_token_value(dkd_firebase_account_data_value);}catch{}
+    const dkd_results_value:Record<string,unknown>[]=[];let dkd_sent_count_value=0;
+    for(const dkd_target_value of dkd_target_values){
+      const dkd_native_token_value=dkd_latest_native_token_value(dkd_native_rows_value,dkd_target_value.userId,dkd_target_value.panel);let dkd_result_value:Record<string,unknown>={dkd_ok_value:false,dkd_reason_value:'native_not_ready'};
+      if(dkd_native_token_value&&dkd_firebase_account_data_value&&dkd_firebase_access_token_value){dkd_result_value=await dkd_send_fcm_value(dkd_firebase_account_data_value,dkd_firebase_access_token_value,dkd_native_token_value,dkd_target_value.title,dkd_target_value.body,dkd_target_value.channel,dkd_target_value.data);dkd_result_value.dkd_transport_value='fcm_v1';}
+      if(dkd_result_value.dkd_ok_value!==true){const dkd_expo_token_value=dkd_latest_expo_token_value(dkd_expo_rows_value,dkd_target_value.userId,dkd_target_value.panel);const dkd_expo_result_value=await dkd_send_expo_value(dkd_expo_token_value,dkd_target_value.title,dkd_target_value.body,dkd_target_value.channel,dkd_target_value.data);dkd_result_value={...dkd_expo_result_value,dkd_transport_value:'expo',dkd_native_available_value:Boolean(dkd_native_token_value),dkd_fcm_credentials_ready_value:Boolean(dkd_firebase_account_data_value&&dkd_firebase_access_token_value)};}
+      if(dkd_result_value.dkd_ok_value===true)dkd_sent_count_value+=1;dkd_results_value.push({dkd_user_id_value:dkd_target_value.userId,dkd_panel_value:dkd_target_value.panel,...dkd_result_value});
+    }
+    return new Response(JSON.stringify({ok:true,dkd_event_value:dkd_derived_event_value,dkd_target_count_value:dkd_target_values.length,dkd_sent_count_value,dkd_fcm_credentials_ready_value:Boolean(dkd_firebase_account_data_value&&dkd_firebase_access_token_value),dkd_results_value}),{headers:{...dkd_cors_headers_value,'content-type':'application/json'}});
+  }catch(dkd_error_value){return new Response(JSON.stringify({ok:false,dkd_error_value:dkd_error_value instanceof Error?dkd_error_value.message:String(dkd_error_value)}),{status:200,headers:{...dkd_cors_headers_value,'content-type':'application/json'}});}
 });
