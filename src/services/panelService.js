@@ -33,6 +33,7 @@ function dkd_throw_rpc_error(dkd_error_value) {
 }
 
 function dkd_safe_coordinate_number(dkd_value, dkd_axis_value) {
+  if (dkd_value === null || dkd_value === undefined || dkd_value === '') return null;
   const dkd_number_value = Number(dkd_value);
   if (!Number.isFinite(dkd_number_value)) return null;
   if (dkd_axis_value === 'lat' && Math.abs(dkd_number_value) > 90) return null;
@@ -56,7 +57,7 @@ export async function dkd_panel_sign_up(dkd_form_value) {
     dkd_panel_city: dkd_form_value.city.trim(), dkd_panel_district: dkd_form_value.district.trim(),
     dkd_panel_address_text: dkd_form_value.address.trim(),
   };
-  const { data, error } = await supabase.auth.signUp({ email: dkd_form_value.email.trim(), password: dkd_form_value.password, options: { data: dkd_metadata_value } });
+  const { data, error } = await supabase.auth.signUp({ email: dkd_form_value.email.trim(), password: dkd_password_value ?? dkd_form_value.password, options: { data: dkd_metadata_value } });
   dkd_throw_rpc_error(error);
   if (data?.session) await dkd_panel_ensure_business_profile(data.user);
   return data;
