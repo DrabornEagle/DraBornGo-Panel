@@ -26,7 +26,6 @@ const dkd_tabs = [
   { key:'couriers',label:'Kuryeler',icon:'bike-fast',activeIcon:'motorbike' },
   { key:'reports',label:'Rapor',icon:'chart-box-outline',activeIcon:'chart-box' },
   { key:'platform_fee',label:'Hizmet',icon:'hand-coin-outline',activeIcon:'hand-coin' },
-  { key:'settings',label:'Ayarlar',icon:'cog-outline',activeIcon:'cog' },
 ];
 
 function DkdBottomBar({ value,onChange }) {
