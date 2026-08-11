@@ -9,7 +9,7 @@ import {
   dkd_panel_ack_platform_notice,
   dkd_panel_upload_platform_receipt,
   dkd_panel_submit_platform_payment,
-} from '../services/panelService';
+} from '../services/adminService';
 
 const dkd_weekdays = [{v:1,l:'Pzt'},{v:2,l:'Sal'},{v:3,l:'Çar'},{v:4,l:'Per'},{v:5,l:'Cum'},{v:6,l:'Cmt'},{v:7,l:'Paz'}];
 const dkd_money = (dkd_value) => `${Number(dkd_value || 0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} TL`;

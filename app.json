@@ -3,7 +3,7 @@
     "name": "DraBornGo Panel",
     "slug": "draborngo-panel",
     "scheme": "draborngo-panel",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": [
@@ -31,7 +31,7 @@
     ],
     "android": {
       "package": "com.draborneagle.draborngopanel",
-      "versionCode": 2,
+      "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#07111F"

@@ -34,7 +34,7 @@ export default function SettingsScreen({ business, onProfileUpdated }) {
   };
   return <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <Text style={styles.kicker}>PANEL AYARLARI</Text><Text style={styles.title}>İşletme Profili</Text><Text style={styles.subtitle}>Giriş hesabı ve işletme bilgilerinin yönetimi</Text>
-    <View style={styles.infoCard}><View style={styles.infoIcon}><MaterialCommunityIcons name="database-check-outline" size={21} color={dkd_theme.green} /></View><View style={{ flex: 1 }}><Text style={styles.infoTitle}>DraBornGo Ortak Supabase</Text><Text style={styles.infoText}>Panel ve ana uygulama aynı kurye, sipariş, konum ve kazanç altyapısını kullanır.</Text></View></View>
+    <View style={styles.infoCard}><View style={styles.infoIcon}><MaterialCommunityIcons name="database-check-outline" size={21} color={dkd_theme.green} /></View><View style={{ flex: 1 }}><Text style={styles.infoTitle}>DraBornGo Ortak Veritabanı</Text><Text style={styles.infoText}>Panel ve ana uygulama aynı kurye, sipariş, konum ve kazanç altyapısını kullanır.</Text></View></View>
     <View style={styles.formCard}>
       <DkdField label="İŞLETME ADI" value={dkd_form.businessName} onChangeText={(v) => dkd_set('businessName', v)} />
       <DkdField label="İŞLETME SAHİBİ" value={dkd_form.ownerFullName} onChangeText={(v) => dkd_set('ownerFullName', v)} />
@@ -47,7 +47,7 @@ export default function SettingsScreen({ business, onProfileUpdated }) {
     </View>
     <View style={styles.securityCard}><MaterialCommunityIcons name="shield-lock-outline" size={24} color={dkd_theme.cyan} /><View style={{ flex: 1 }}><Text style={styles.securityTitle}>Gizlilik ve Yetkilendirme</Text><Text style={styles.securityText}>İşletme yalnızca kendi bağlı kuryelerini ve kendi siparişlerini görür. TC araması yalnızca tam eşleşme ile çalışır; kimlik numarası panel istemcisine veya arama sonucuna döndürülmez.</Text></View></View>
     <Pressable onPress={dkd_panel_sign_out} style={styles.logout}><MaterialCommunityIcons name="logout" size={19} color="#FF9DA8" /><Text style={styles.logoutText}>Hesaptan Çıkış Yap</Text></Pressable>
-    <Text style={styles.version}>DraBornGo Panel v0.0.1 • Expo SDK 57</Text><View style={{ height: 110 }} />
+    <Text style={styles.version}>DraBornGo Panel v0.0.3</Text><View style={{ height: 110 }} />
   </ScrollView>;
 }
 

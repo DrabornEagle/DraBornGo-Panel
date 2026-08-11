@@ -14,7 +14,7 @@ import {
   dkd_admin_create_payment_receipt_signed_url,
   dkd_panel_ack_platform_notice,
   dkd_panel_sign_out,
-} from '../services/panelService';
+} from '../services/adminService';
 
 const dkd_money = (dkd_value) => `${Number(dkd_value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`;
 const dkd_earning_value = (dkd_value) => Number(dkd_value?.dkd_earnings_tl || 0);
