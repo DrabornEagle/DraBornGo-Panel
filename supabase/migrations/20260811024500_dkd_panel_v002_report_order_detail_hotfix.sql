@@ -1,0 +1,3 @@
+-- Applied to shared DraBornGo Supabase on 2026-08-11.
+-- Extends dkd_business_day_report_dkd with detailed order fields used by the Panel report detail modal.
+-- Function body is managed in production migration dkd_panel_v002_report_order_detail_hotfix.

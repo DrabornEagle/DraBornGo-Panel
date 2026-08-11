@@ -13,6 +13,13 @@
           "hidden": false,
           "style": "dark"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "draborngo-panel",
+          "color": "#69E9FF"
+        }
       ]
     ],
     "android": {
