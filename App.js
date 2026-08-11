@@ -65,6 +65,11 @@ function DkdAuthenticatedApp({ session }) {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    const dkd_interval_value = setInterval(() => dkd_set_refresh_signal((dkd_value) => dkd_value + 1), 4000);
+    return () => clearInterval(dkd_interval_value);
+  }, []);
+
+  useEffect(() => {
     return dkd_panel_subscribe_live((dkd_payload_value) => {
       dkd_set_refresh_signal((dkd_value) => dkd_value + 1);
       const dkd_table_value = String(dkd_payload_value?.table || '').trim();
