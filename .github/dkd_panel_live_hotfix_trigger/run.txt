@@ -1,0 +1,1 @@
+Validate current main live tracking and notification source hotfix without building an APK.
