@@ -11,13 +11,16 @@ on:
     paths:
       - '.github/dkd_development_build_trigger/**'
 
+permissions:
+  contents: write
+
 concurrency:
   group: draborngo-panel-development-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   development_apk:
-    name: DraBornGo Panel v0.0.2 Development Client APK
+    name: DraBornGo Panel v0.0.3 code1 Development Client APK
     runs-on: ubuntu-latest
     timeout-minutes: 70
     env:
@@ -39,16 +42,19 @@ jobs:
           java-version: '17'
       - name: Install development dependencies
         run: npm install --no-package-lock
-      - name: Verify Development Client dependencies
+      - name: Verify Development Client native dependencies
         shell: bash
         run: |
           node <<'DKD_NODE'
           const p=require('./package.json'); const a=require('./app.json').expo;
-          if(!p.dependencies['expo-dev-client']) throw new Error('expo-dev-client missing');
-          if(!p.dependencies['@rnmapbox/maps']) throw new Error('@rnmapbox/maps missing');
-          if(a.version!=='0.0.2'||Number(a.android.versionCode)!==2) throw new Error('Panel identity mismatch');
+          const required=['expo-dev-client','@rnmapbox/maps','expo-document-picker','expo-navigation-bar','react-native-svg'];
+          for (const name of required) {
+            if(!p.dependencies[name]) throw new Error(`${name} missing from package.json`);
+            require.resolve(`${name}/package.json`);
+          }
+          if(a.version!=='0.0.3'||Number(a.android.versionCode)!==1) throw new Error('Panel identity mismatch');
           if(!Array.isArray(a.plugins)||!a.plugins.some((x)=>Array.isArray(x)&&x[0]==='@rnmapbox/maps')) throw new Error('Panel Mapbox plugin missing');
-          console.log('DraBornGo Panel development identity OK');
+          console.log('DraBornGo Panel v0.0.3 code1 native dependency check OK');
           DKD_NODE
       - name: Prepare Android SDK
         shell: bash
@@ -65,19 +71,32 @@ jobs:
         run: |
           cd android
           ./gradlew :app:assembleDebug --no-daemon
-      - name: Collect Development APK
+      - name: Collect and verify Development APK
         shell: bash
         run: |
           mkdir -p dkd_development_apk_output
           dkd_apk_path="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
           test -n "$dkd_apk_path"
-          cp "$dkd_apk_path" dkd_development_apk_output/DraBornGo-Panel-v0.0.2-development.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_development_apk_output/DraBornGo-Panel-v0.0.2-development.apk
-          sha256sum dkd_development_apk_output/DraBornGo-Panel-v0.0.2-development.apk | tee dkd_development_apk_output/SHA256.txt
-          printf 'Development Client / arm64 debug APK. Connect with expo start --dev-client.\n' > dkd_development_apk_output/README.txt
-      - name: Upload Development APK
+          cp "$dkd_apk_path" dkd_development_apk_output/DraBornGo-Panel-v0.0.3-code1-development.apk
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_development_apk_output/DraBornGo-Panel-v0.0.3-code1-development.apk
+          sha256sum dkd_development_apk_output/DraBornGo-Panel-v0.0.3-code1-development.apk | tee dkd_development_apk_output/SHA256.txt
+          printf 'DraBornGo Panel v0.0.3 code1 Development Client / arm64 debug APK. Includes current native Expo modules, including expo-document-picker. Connect with expo start --dev-client.\n' > dkd_development_apk_output/README.txt
+      - name: Upload Development APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DraBornGo_Panel_Development_APK_v0_0_2
+          name: DraBornGo_Panel_Development_APK_v0_0_3_code1
           path: dkd_development_apk_output/
           retention-days: 14
+      - name: Publish downloadable prerelease APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dkd_tag="dev-panel-v0.0.3-code1-${GITHUB_RUN_ID}"
+          gh release create "$dkd_tag" \
+            dkd_development_apk_output/DraBornGo-Panel-v0.0.3-code1-development.apk \
+            dkd_development_apk_output/SHA256.txt \
+            --target "$GITHUB_SHA" \
+            --title "DraBornGo Panel v0.0.3 code1 Development APK" \
+            --notes "Development Client APK rebuilt from current main with native Expo modules, including expo-document-picker. Not a Google Play release build." \
+            --prerelease
