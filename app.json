@@ -8,6 +8,19 @@
     "userInterfaceStyle": "dark",
     "plugins": [
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/dkd-panel-splash.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000",
+          "dark": {
+            "image": "./assets/images/dkd-panel-splash.png",
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      [
         "expo-navigation-bar",
         {
           "enforceContrast": false,
@@ -34,7 +47,8 @@
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "backgroundColor": "#07111F"
+        "foregroundImage": "./assets/images/dkd-panel-icon.png",
+        "backgroundColor": "#000000"
       }
     },
     "ios": {
@@ -46,6 +60,8 @@
     },
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "icon": "./assets/images/dkd-panel-icon.png",
+    "backgroundColor": "#000000"
   }
 }

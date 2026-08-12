@@ -8,7 +8,7 @@
     "start:tunnel": "expo start --go --tunnel --clear",
     "start:dev": "expo start --dev-client --lan --clear",
     "start:dev:tunnel": "expo start --dev-client --tunnel --clear",
-    "android": "expo start --android",
+    "android": "expo run:android",
     "doctor": "npx expo-doctor@latest",
     "expo:fix": "npx expo install --fix"
   },
@@ -28,6 +28,7 @@
     "expo-linear-gradient": "~57.0.1",
     "expo-navigation-bar": "~57.0.2",
     "expo-notifications": "~57.0.0",
+    "expo-splash-screen": "~57.0.6",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.2",
