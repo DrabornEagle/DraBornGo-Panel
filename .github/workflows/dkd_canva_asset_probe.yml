@@ -1,0 +1,32 @@
+name: DraBornGo Panel icon source probe
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/dkd_canva_asset_probe.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe signed Canva asset variants
+        shell: bash
+        run: |
+          set +e
+          sudo apt-get update -qq && sudo apt-get install -y imagemagick >/dev/null
+          base='https://media.canva.com/v2/image-resize'
+          uri='ifs%3A%2F%2FM%2F4a512a04-d99a-44ac-8952-78fceb3bb090'
+          q='exp=1786547833&osig=AAAAAAAAAAAAAAAAAAAAALR38357gRRLMZ40r5Vbf_J-HWLJtjL2k9QlDI4H04_P&signer=media-rpc'
+          thumb="$base/format:JPG/height:133/quality:75/uri:$uri/watermark:F/width:200?csig=AAAAAAAAAAAAAAAAAAAAAOOocmbTEh3RzGIYBARfaPaklIxHuQsXjXhCUlIBmOW1&$q&x-canva-quality=thumbnail"
+          full_no_csig="$base/format:JPG/height:1024/quality:100/uri:$uri/watermark:F/width:1536?$q"
+          full_same_csig="$base/format:JPG/height:1024/quality:100/uri:$uri/watermark:F/width:1536?csig=AAAAAAAAAAAAAAAAAAAAAOOocmbTEh3RzGIYBARfaPaklIxHuQsXjXhCUlIBmOW1&$q"
+          for entry in "thumb|$thumb" "full_no_csig|$full_no_csig" "full_same_csig|$full_same_csig"; do
+            name="${entry%%|*}"; url="${entry#*|}"
+            code=$(curl -L -sS -o "$name.jpg" -w '%{http_code}' "$url")
+            echo "$name HTTP $code"
+            if [ "$code" = 200 ]; then
+              identify "$name.jpg" || true
+              sha256sum "$name.jpg" || true
+              ls -lh "$name.jpg"
+            fi
+          done
