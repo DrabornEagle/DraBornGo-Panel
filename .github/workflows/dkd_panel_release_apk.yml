@@ -2,6 +2,10 @@ name: DraBornGo Panel Release APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/dkd_release_build_trigger/**'
   pull_request:
     branches: [main]
     paths:
@@ -13,7 +17,7 @@ concurrency:
 
 jobs:
   dkd_panel_build_release_apk:
-    name: DraBornGo Panel v0.0.2 code 2 release APK
+    name: DraBornGo Panel v0.0.3 code 1 release APK
     runs-on: ubuntu-latest
     timeout-minutes: 70
     env:
@@ -45,10 +49,10 @@ jobs:
         run: |
           node <<'DKD_NODE'
           const a=require('./app.json').expo; const p=require('./package.json');
-          if(a.version!=='0.0.2'||p.version!=='0.0.2') throw new Error('Panel version must be 0.0.2');
-          if(Number(a.android.versionCode)!==2) throw new Error('Panel versionCode must be 2');
+          if(a.version!=='0.0.3'||p.version!=='0.0.3') throw new Error('Panel version must be 0.0.3');
+          if(Number(a.android.versionCode)!==1) throw new Error('Panel versionCode must be 1');
           if(a.android.package!=='com.draborneagle.draborngopanel') throw new Error('Panel Android package mismatch');
-          console.log('DraBornGo Panel identity OK');
+          console.log('DraBornGo Panel v0.0.3 code 1 identity OK');
           DKD_NODE
       - name: Prepare Android SDK
         shell: bash
@@ -102,14 +106,14 @@ jobs:
           mkdir -p dkd_release_apk_output
           dkd_apk_path="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
           test -n "$dkd_apk_path"
-          cp "$dkd_apk_path" dkd_release_apk_output/DraBornGo-Panel-v0.0.2-code2-release.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_release_apk_output/DraBornGo-Panel-v0.0.2-code2-release.apk
-          sha256sum dkd_release_apk_output/DraBornGo-Panel-v0.0.2-code2-release.apk | tee dkd_release_apk_output/SHA256.txt
+          cp "$dkd_apk_path" dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-release.apk
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-release.apk
+          sha256sum dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-release.apk | tee dkd_release_apk_output/SHA256.txt
           printf 'Signing mode: %s\n' "$DKD_SIGNING_MODE" | tee dkd_release_apk_output/SIGNING_MODE.txt
           ls -lh dkd_release_apk_output
       - name: Upload Panel Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: DraBornGo_Panel_Release_APK_v0_0_2_code2
+          name: DraBornGo_Panel_Release_APK_v0_0_3_code1
           path: dkd_release_apk_output/
           retention-days: 14
