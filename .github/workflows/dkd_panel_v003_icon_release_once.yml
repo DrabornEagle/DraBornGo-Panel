@@ -76,11 +76,6 @@ jobs:
           const expo=app.expo;
           expo.icon='./assets/images/dkd-panel-icon.png';
           expo.backgroundColor='#000000';
-          expo.splash={
-            image:'./assets/images/dkd-panel-splash.png',
-            resizeMode:'contain',
-            backgroundColor:'#000000'
-          };
           expo.android=expo.android||{};
           expo.android.adaptiveIcon={
             foregroundImage:'./assets/images/dkd-panel-icon.png',
@@ -131,14 +126,13 @@ jobs:
       - name: Verify native launcher and splash resources
         shell: bash
         run: |
-          echo 'Launcher resources:'
+          echo 'Launcher and splash resources:'
           find android/app/src/main/res -type f \( -iname '*launcher*' -o -iname '*splash*' \) | sort
           if grep -R -q 'android:fillColor="#3ddc84"' android/app/src/main/res 2>/dev/null; then
             echo 'Default Android robot foreground detected unexpectedly.'
             exit 1
           fi
           test -n "$(find android/app/src/main/res -type f -iname '*launcher_foreground*' | head -n 1)"
-          grep -R -q 'windowSplashScreen' android/app/src/main/res/values* 2>/dev/null || true
           echo 'Native icon/splash resources generated from supplied asset.'
 
       - name: Prepare release signing
