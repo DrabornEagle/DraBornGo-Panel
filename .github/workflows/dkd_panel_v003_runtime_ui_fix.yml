@@ -1,0 +1,65 @@
+name: DraBornGo Panel v0.0.3 runtime UI fix
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/dkd_panel_v003_runtime_ui_fix.yml']
+permissions:
+  contents: write
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply runtime and UI fixes
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          function replaceRequired(source,oldText,newText,label){
+            if(source.includes(newText)) return source;
+            if(!source.includes(oldText)) throw new Error(`Missing ${label}`);
+            return source.replace(oldText,newText);
+          }
+
+          const adminPath='src/screens/AdminCenterScreen.js';
+          let admin=fs.readFileSync(adminPath,'utf8');
+          admin=replaceRequired(
+            admin,
+            "</LinearGradient></Pressable>)}        {(dkd_businesses || []).length>dkd_business_limit&&<Pressable",
+            "</LinearGradient></Pressable>)}\n        {(dkd_businesses || []).length>dkd_business_limit&&<Pressable",
+            'business list raw text node'
+          );
+          if(/\}\)\s{2,}\{\(dkd_businesses/.test(admin)) throw new Error('Raw JSX whitespace node still present in business list');
+          fs.writeFileSync(adminPath,admin);
+
+          const dashboardPath='src/screens/DashboardScreenPro.js';
+          let dashboard=fs.readFileSync(dashboardPath,'utf8');
+          dashboard=replaceRequired(dashboard,'name="tune-variant" size={29}','name="tune-variant" size={26}','settings icon size');
+          dashboard=replaceRequired(dashboard,"settingsButton: { width: 58, height: 58, borderRadius: 21","settingsButton: { width: 52, height: 52, borderRadius: 19",'settings button size');
+          dashboard=replaceRequired(dashboard,"settingsHalo:{position:'absolute',width:46,height:46,borderRadius:18","settingsHalo:{position:'absolute',width:40,height:40,borderRadius:16",'settings halo size');
+          fs.writeFileSync(dashboardPath,dashboard);
+
+          const feePath='src/screens/PlatformFeeScreen.js';
+          let fee=fs.readFileSync(feePath,'utf8');
+          fee=replaceRequired(fee,"ibanRow:{flexDirection:'row',alignItems:'center',gap:10,marginTop:2}","ibanRow:{flexDirection:'row',alignItems:'center',gap:10,marginTop:7}",'iban vertical spacing');
+          fs.writeFileSync(feePath,fee);
+          NODE
+      - name: Expo Doctor
+        run: npx expo-doctor
+      - name: Android Metro export
+        run: npx expo export --platform android --output-dir /tmp/dkd-panel-v003-runtime-ui-fix
+      - name: Commit validated fixes
+        run: |
+          rm -f .github/workflows/dkd_panel_v003_runtime_ui_fix.yml
+          git config user.name 'DraBornGo Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(panel): runtime text node and UI spacing' || exit 0
+          git push origin HEAD:main
