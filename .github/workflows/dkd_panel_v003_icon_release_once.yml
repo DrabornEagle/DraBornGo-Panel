@@ -1,4 +1,4 @@
-name: DraBornGo Panel v0.0.3 icon + release APK
+name: DraBornGo Panel v0.0.3 icon + splash hotfix
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: draborngo-panel-v003-icon-release
+  group: draborngo-panel-v003-icon-splash-hotfix
   cancel-in-progress: true
 
 jobs:
@@ -27,14 +27,19 @@ jobs:
       DKD_ANDROID_KEY_ALIAS: ${{ secrets.DKD_ANDROID_KEY_ALIAS }}
       DKD_ANDROID_KEY_PASSWORD: ${{ secrets.DKD_ANDROID_KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-java@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
@@ -42,62 +47,76 @@ jobs:
       - name: Install image tools
         run: sudo apt-get update -qq && sudo apt-get install -y imagemagick
 
-      - name: Restore exact Panel artwork at full dimensions
+      - name: Restore supplied DraBornGo Panel logo
         shell: bash
         run: |
           mkdir -p assets/images
-          dkd_url='https://media.canva.com/v2/image-resize/format:JPG/height:1024/quality:100/uri:ifs%3A%2F%2FM%2F0c9dad2e-7e99-4f3c-845b-51e28194eb45/watermark:F/width:1536?csig=AAAAAAAAAAAAAAAAAAAAAJ2R5lqHSrk3vPehajdjTGkTIZ1j00cLTnMkS9MsMLJ3&exp=1786537289&osig=AAAAAAAAAAAAAAAAAAAAAIzUpoq1m7wZ_mRZOwEyKSNBZhJN5E7_ZsjioETm65xD&signer=media-rpc'
+          dkd_url='https://media.canva.com/v2/image-resize/format:JPG/height:200/quality:75/uri:ifs%3A%2F%2FM%2F10c1a3c3-f5e0-4836-b934-e09479dc42c3/watermark:F/width:200?csig=AAAAAAAAAAAAAAAAAAAAAPDXui4LaY-K1qTOTpJM5bQKaY7Ig1vF91z74p1FAGYo&exp=1786552760&osig=AAAAAAAAAAAAAAAAAAAAABrtT3SRvkF90yrm6h0LW3LWf0EHKklpoSxO7Pv8dA_X&signer=media-rpc&x-canva-quality=thumbnail'
           curl --fail --location --retry 3 "$dkd_url" -o assets/images/dkd-panel-icon-source.jpg
           dkd_size="$(identify -format '%wx%h' assets/images/dkd-panel-icon-source.jpg)"
-          echo "Panel source dimensions: $dkd_size"
-          test "$dkd_size" = '1536x1024'
-          convert assets/images/dkd-panel-icon-source.jpg -background black -gravity center -extent 1536x1536 -quality 100 assets/images/dkd-panel-icon-square.jpg
-          test "$(identify -format '%wx%h' assets/images/dkd-panel-icon-square.jpg)" = '1536x1536'
+          echo "Supplied Panel icon source dimensions: $dkd_size"
+          test "$dkd_size" = '200x200'
+          convert assets/images/dkd-panel-icon-source.jpg -filter Lanczos -resize 1024x1024 -strip assets/images/dkd-panel-icon.png
+          cp assets/images/dkd-panel-icon.png assets/images/dkd-panel-splash.png
+          test "$(identify -format '%wx%h' assets/images/dkd-panel-icon.png)" = '1024x1024'
+          test "$(identify -format '%wx%h' assets/images/dkd-panel-splash.png)" = '1024x1024'
 
-      - name: Configure exact icon and explicit splash
-        shell: bash
+      - name: Install dependencies and splash plugin
         run: |
           npm ci
           npx expo install expo-splash-screen
+
+      - name: Configure launcher icon and splash explicitly
+        shell: bash
+        run: |
           node <<'NODE'
           const fs=require('fs');
-          const path='app.json';
-          const app=JSON.parse(fs.readFileSync(path,'utf8'));
+          const p='app.json';
+          const app=JSON.parse(fs.readFileSync(p,'utf8'));
           const expo=app.expo;
-          expo.icon='./assets/images/dkd-panel-icon-square.jpg';
+          expo.icon='./assets/images/dkd-panel-icon.png';
           expo.backgroundColor='#000000';
+          expo.splash={
+            image:'./assets/images/dkd-panel-splash.png',
+            resizeMode:'contain',
+            backgroundColor:'#000000'
+          };
           expo.android=expo.android||{};
           expo.android.adaptiveIcon={
-            foregroundImage:'./assets/images/dkd-panel-icon-square.jpg',
+            foregroundImage:'./assets/images/dkd-panel-icon.png',
             backgroundColor:'#000000'
           };
           const plugins=Array.isArray(expo.plugins)?expo.plugins:[];
-          const filtered=plugins.filter((p)=>!(p==='expo-splash-screen'||(Array.isArray(p)&&p[0]==='expo-splash-screen')));
+          const filtered=plugins.filter((x)=>!(x==='expo-splash-screen'||(Array.isArray(x)&&x[0]==='expo-splash-screen')));
           filtered.unshift(['expo-splash-screen',{
-            image:'./assets/images/dkd-panel-icon-source.jpg',
-            imageWidth:320,
+            image:'./assets/images/dkd-panel-splash.png',
+            imageWidth:260,
             resizeMode:'contain',
             backgroundColor:'#000000',
-            dark:{backgroundColor:'#000000'}
+            dark:{
+              image:'./assets/images/dkd-panel-splash.png',
+              backgroundColor:'#000000'
+            }
           }]);
           expo.plugins=filtered;
-          fs.writeFileSync(path,JSON.stringify(app,null,2)+'\n');
+          fs.writeFileSync(p,JSON.stringify(app,null,2)+'\n');
           NODE
           node <<'NODE'
           const a=require('./app.json').expo;
           const p=require('./package.json');
           if(a.version!=='0.0.3'||p.version!=='0.0.3') throw new Error('Panel must remain v0.0.3');
           if(Number(a.android.versionCode)!==1) throw new Error('Panel versionCode must remain 1');
-          if(a.icon!=='./assets/images/dkd-panel-icon-square.jpg') throw new Error('Panel icon not configured');
-          const splash=(a.plugins||[]).find(x=>Array.isArray(x)&&x[0]==='expo-splash-screen');
-          if(!splash) throw new Error('Explicit splash missing');
-          console.log('Panel identity/icon/splash OK');
+          if(a.icon!=='./assets/images/dkd-panel-icon.png') throw new Error('Launcher icon missing');
+          if(a.android?.adaptiveIcon?.foregroundImage!=='./assets/images/dkd-panel-icon.png') throw new Error('Adaptive icon missing');
+          const splash=(a.plugins||[]).find((x)=>Array.isArray(x)&&x[0]==='expo-splash-screen');
+          if(!splash) throw new Error('Splash plugin missing');
+          console.log('Panel icon + splash configuration OK');
           NODE
 
       - name: Validate Expo project
         run: |
           npx expo-doctor@latest
-          npx expo export --platform android --output-dir /tmp/dkd-panel-release-export
+          npx expo export --platform android --output-dir /tmp/dkd-panel-icon-splash-export
 
       - name: Prepare Android SDK
         shell: bash
@@ -108,6 +127,19 @@ jobs:
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --non-interactive
+
+      - name: Verify native launcher and splash resources
+        shell: bash
+        run: |
+          echo 'Launcher resources:'
+          find android/app/src/main/res -type f \( -iname '*launcher*' -o -iname '*splash*' \) | sort
+          if grep -R -q 'android:fillColor="#3ddc84"' android/app/src/main/res 2>/dev/null; then
+            echo 'Default Android robot foreground detected unexpectedly.'
+            exit 1
+          fi
+          test -n "$(find android/app/src/main/res -type f -iname '*launcher_foreground*' | head -n 1)"
+          grep -R -q 'windowSplashScreen' android/app/src/main/res/values* 2>/dev/null || true
+          echo 'Native icon/splash resources generated from supplied asset.'
 
       - name: Prepare release signing
         shell: bash
@@ -143,7 +175,7 @@ jobs:
           printf '\napply from: "dkd_release_signing.gradle"\n' >> android/app/build.gradle
           printf '\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8\norg.gradle.daemon=false\norg.gradle.parallel=false\n' >> android/gradle.properties
 
-      - name: Build normal release APK
+      - name: Build release APK
         shell: bash
         run: |
           cd android
@@ -155,37 +187,25 @@ jobs:
           mkdir -p dkd_release_apk_output
           dkd_apk_path="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
           test -n "$dkd_apk_path"
-          cp "$dkd_apk_path" dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-release.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-release.apk
-          sha256sum dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-release.apk | tee dkd_release_apk_output/SHA256.txt
+          cp "$dkd_apk_path" dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-icon-splash-fixed.apk
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-icon-splash-fixed.apk
+          sha256sum dkd_release_apk_output/DraBornGo-Panel-v0.0.3-code1-icon-splash-fixed.apk | tee dkd_release_apk_output/SHA256.txt
           printf 'Signing mode: %s\n' "$DKD_SIGNING_MODE" | tee dkd_release_apk_output/SIGNING_MODE.txt
           ls -lh dkd_release_apk_output
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload fixed release APK
+        uses: actions/upload-artifact@v4
         with:
-          name: DraBornGo_Panel_Release_APK_v0_0_3_code1
+          name: DraBornGo_Panel_v0_0_3_code1_ICON_SPLASH_FIXED
           path: dkd_release_apk_output/
           retention-days: 14
 
-      - name: Commit icon/splash config and update persistent release workflow
+      - name: Persist icon and splash assets to main
         shell: bash
         run: |
-          node <<'NODE'
-          const fs=require('fs');
-          const p='.github/workflows/dkd_panel_release_apk.yml';
-          let s=fs.readFileSync(p,'utf8');
-          s=s.replaceAll('v0.0.2 code 2','v0.0.3 code 1');
-          s=s.replaceAll("a.version!=='0.0.2'||p.version!=='0.0.2'","a.version!=='0.0.3'||p.version!=='0.0.3'");
-          s=s.replaceAll("Panel version must be 0.0.2","Panel version must be 0.0.3");
-          s=s.replaceAll('Number(a.android.versionCode)!==2','Number(a.android.versionCode)!==1');
-          s=s.replaceAll('Panel versionCode must be 2','Panel versionCode must be 1');
-          s=s.replaceAll('DraBornGo-Panel-v0.0.2-code2-release.apk','DraBornGo-Panel-v0.0.3-code1-release.apk');
-          s=s.replaceAll('DraBornGo_Panel_Release_APK_v0_0_2_code2','DraBornGo_Panel_Release_APK_v0_0_3_code1');
-          fs.writeFileSync(p,s);
-          NODE
           rm -f .github/workflows/dkd_panel_v003_icon_release_once.yml
           git config user.name 'DraBornGo Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add app.json package.json package-lock.json assets/images .github/workflows/dkd_panel_release_apk.yml .github/workflows/dkd_panel_v003_icon_release_once.yml
-          git commit -m 'release(panel): apply supplied icon and splash for v0.0.3 code1' || true
+          git add app.json package.json package-lock.json assets/images .github/workflows/dkd_panel_v003_icon_release_once.yml
+          git commit -m 'fix(panel): persist supplied launcher icon and splash assets' || true
           git push origin HEAD:main
